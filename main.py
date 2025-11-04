@@ -4,6 +4,7 @@ import json
 import logging
 import logging.handlers
 import os
+import signal
 
 from dotenv import load_dotenv
 
@@ -419,32 +420,47 @@ async def reminder():
         logger.info(f"LLM{id}REMINDER - {generated_message.text}")
 
 
-async def main():
-    try:
-        print(await user_db.check_db())
-        print("Основная часть запущена")
-        print("Отладка:\n")
-
-        polling_task = asyncio.create_task(dp.start_polling(bot))
-
-        while True:
+async def reminder_loop():
+    """Отдельная задача для напоминаний"""
+    while True:
+        try:
             await reminder()
             await asyncio.sleep(30)
-
-    except KeyboardInterrupt:
-        print("\n🛑 Получен сигнал остановки (Ctrl-C)")
-        polling_task.cancel()
-        try:
-            await polling_task
         except asyncio.CancelledError:
-            pass
-        print("✅ Бот остановлен")
+            print("Цикл напоминаний остановлен")
+            break
+        except Exception as e:
+            logger.error(f"Ошибка в цикле напоминаний: {e}")
+            await asyncio.sleep(30)
+
+
+async def main():
+    print(await user_db.check_db())
+    print("Основная часть запущена")
+    print("Нажмите Ctrl-C для остановки бота\n")
+    
+    # Создаем задачу для напоминаний
+    reminder_task = asyncio.create_task(reminder_loop())
+    
+    try:
+        # Запускаем polling - он сам обрабатывает сигналы
+        await dp.start_polling(bot)
+    except (KeyboardInterrupt, SystemExit):
+        print("\n🛑 Получен сигнал остановки")
     except Exception as e:
         print(f"Ошибка: {e}")
         if DEBUG:
             await bot.send_message(DEBUG_CHAT, f"Произошла ошибка: '{e}'")
         logger.critical(f"CRITICAL_ERROR: {e}", exc_info=True)
-        raise  
+    finally:
+        print("Останавливаем бота...")
+        reminder_task.cancel()
+        try:
+            await reminder_task
+        except asyncio.CancelledError:
+            pass
+        await bot.session.close()
+        print("✅ Бот остановлен")  
 
 
 async def run_with_restart():
@@ -452,9 +468,9 @@ async def run_with_restart():
         try:
             await main()
             break  # Нормальное завершение - выходим из цикла
-        except KeyboardInterrupt:
-            print("👋 Бот остановлен пользователем")
-            break  # Ctrl-C - выходим из цикла
+        except (KeyboardInterrupt, SystemExit):
+            print("👋 Завершение работы")
+            break
         except Exception as e:
             print(f"main() завершился с ошибкой: {e}. Перезапуск через 5 секунд...")
             await asyncio.sleep(5)
@@ -463,5 +479,5 @@ async def run_with_restart():
 if __name__ == "__main__":
     try:
         asyncio.run(run_with_restart())
-    except KeyboardInterrupt:
-        print("👋 Завершение работы")
+    except (KeyboardInterrupt, SystemExit):
+        print("👋 Программа завершена")
