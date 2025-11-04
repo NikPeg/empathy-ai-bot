@@ -38,6 +38,8 @@ env/
 *.sqlite
 *.sqlite3
 *.db-journal
+data/*
+!data/.gitkeep
 
 # Logs
 *.log
