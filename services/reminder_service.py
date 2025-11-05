@@ -52,13 +52,26 @@ async def send_reminder_to_user(user_id: int):
         "%Y-%m-%d %H:%M:%S"
     )
 
+    # Формируем username информацию если она доступна
+    username_replacement = ""
+    if user.name and user.name != "Not_of_registration":
+        username_replacement = f" 6. Ник пользователя: @{user.name}"
+
+    # Заменяем плейсхолдеры в REMINDER_PROMPT
+    reminder_content = REMINDER_PROMPT.replace("{CURRENTDATE}", current_date)
+    reminder_content = reminder_content.replace("{USERNAME}", username_replacement)
+    
+    # Заменяем плейсхолдеры в DEFAULT_PROMPT
+    default_content = DEFAULT_PROMPT.replace("{CURRENTDATE}", current_date)
+    default_content = default_content.replace("{USERNAME}", username_replacement)
+
     prompt_for_request.append(
         {
             "role": "system",
-            "content": REMINDER_PROMPT.replace("{CURRENTDATE}", current_date),
+            "content": reminder_content,
         }
     )
-    prompt_for_request.insert(0, {"role": "system", "content": DEFAULT_PROMPT})
+    prompt_for_request.insert(0, {"role": "system", "content": default_content})
 
     # Запрашиваем ответ от LLM
     try:

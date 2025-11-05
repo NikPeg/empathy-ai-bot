@@ -44,10 +44,21 @@ async def process_user_message(chat_id: int, message_text: str) -> str | None:
     current_date = datetime.now(timezone(timedelta(hours=3))).strftime(
         "%Y-%m-%d %H:%M:%S"
     )
+    
+    # Формируем системный промпт с подстановкой данных
+    system_content = DEFAULT_PROMPT.replace("{CURRENTDATE}", current_date)
+    
+    # Добавляем username если он есть и не "Not_of_registration"
+    if user.name and user.name != "Not_of_registration":
+        username_info = f" 6. Ник пользователя: @{user.name}"
+        system_content = system_content.replace("{USERNAME}", username_info)
+    else:
+        system_content = system_content.replace("{USERNAME}", "")
+    
     prompt_for_request.append(
         {
             "role": "system",
-            "content": DEFAULT_PROMPT.replace("{CURRENTDATE}", current_date),
+            "content": system_content,
         }
     )
 
