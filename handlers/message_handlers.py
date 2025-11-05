@@ -8,8 +8,8 @@ from aiogram import F, types
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramForbiddenError
 
-from bot_instance import bot, dp
-from config import DEBUG, DEBUG_CHAT, MESSAGES, logger
+from bot_instance import dp
+from config import MESSAGES, logger
 from database import User
 from services.llm_service import process_user_message
 from utils import forward_to_debug, keep_typing
@@ -18,9 +18,6 @@ from utils import forward_to_debug, keep_typing
 @dp.message(F.text & ~F.text.startswith('/'))
 async def handle_text_message(message: types.Message):
     """Обработка текстовых сообщений через LLM (исключая команды)."""
-    if DEBUG:
-        await bot.send_message(DEBUG_CHAT, f"USER{message.chat.id}:")
-
     logger.info(f"USER{message.chat.id}TOLLM:{message.text}")
     await forward_to_debug(message.chat.id, message.message_id)
 
@@ -64,9 +61,7 @@ async def handle_text_message(message: types.Message):
                 await user.get_from_db()
                 user.remind_of_yourself = 0
                 await user.update_in_db()
-                await bot.send_message(
-                    DEBUG_CHAT, f"USER{message.chat.id} заблокировал чатбота"
-                )
+                logger.warning(f"USER{message.chat.id} заблокировал чатбота")
                 return
             except Exception as e:
                 # Пробуем отправить без форматирования
@@ -77,7 +72,7 @@ async def handle_text_message(message: types.Message):
                     )
                 except Exception:
                     pass
-                await bot.send_message(DEBUG_CHAT, f"LLM{message.chat.id} - {e}")
+                logger.error(f"LLM{message.chat.id} - {e}", exc_info=True)
 
             start += 4096
 

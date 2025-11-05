@@ -8,13 +8,12 @@ from datetime import datetime, timedelta, timezone
 import telegramify_markdown
 
 import database
-from bot_instance import bot
 from config import (
-    DEBUG_CHAT,
     DEFAULT_PROMPT,
     DELAYED_REMINDERS_HOURS,
     DELAYED_REMINDERS_MINUTES,
     FROM_TIME,
+    FULL_LEVEL,
     TIMEZONE_OFFSET,
     TO_TIME,
     logger,
@@ -32,16 +31,10 @@ def log_prompt(chat_id: int, prompt: list[dict], prompt_type: str = "MESSAGE"):
         prompt: Список сообщений промпта
         prompt_type: Тип промпта (MESSAGE или REMINDER)
     """
-    # DEBUG: Полный промпт со всей историей
-    logger.debug(f"PROMPT_FULL_{prompt_type}{chat_id}: {json.dumps(prompt, ensure_ascii=False, indent=2)}")
-
-    # INFO: Только системные промпты (без истории диалога)
-    system_prompts = [msg for msg in prompt if msg.get("role") == "system"]
-    logger.info(f"PROMPT_SYSTEM_{prompt_type}{chat_id}: {json.dumps(system_prompts, ensure_ascii=False)}")
-
-    # INFO: Статистика промпта
+    # Статистика промпта (INFO уровень)
     user_messages = len([msg for msg in prompt if msg.get("role") == "user"])
     assistant_messages = len([msg for msg in prompt if msg.get("role") == "assistant"])
+    system_prompts = [msg for msg in prompt if msg.get("role") == "system"]
     total_length = sum(len(msg.get("content", "")) for msg in prompt)
 
     logger.info(
@@ -49,6 +42,12 @@ def log_prompt(chat_id: int, prompt: list[dict], prompt_type: str = "MESSAGE"):
         f"messages={{user: {user_messages}, assistant: {assistant_messages}, system: {len(system_prompts)}}}, "
         f"total_chars={total_length}"
     )
+
+    # Системные промпты без истории (DEBUG уровень)
+    logger.debug(f"PROMPT_SYSTEM_{prompt_type}{chat_id}: {json.dumps(system_prompts, ensure_ascii=False)}")
+
+    # Полный промпт со всей историей (FULL уровень)
+    logger.log(FULL_LEVEL, f"PROMPT_FULL_{prompt_type}{chat_id}: {json.dumps(prompt, ensure_ascii=False, indent=2)}")
 
 
 async def process_user_message(chat_id: int, message_text: str) -> str | None:
@@ -98,11 +97,11 @@ async def process_user_message(chat_id: int, message_text: str) -> str | None:
     try:
         llm_msg = await send_request_to_openrouter(prompt_for_request)
     except Exception as e:
-        await bot.send_message(DEBUG_CHAT, f"LLM{chat_id} - Критическая ошибка: {e}")
+        logger.error(f"LLM{chat_id} - Критическая ошибка: {e}", exc_info=True)
         return None
 
     if llm_msg is None or llm_msg.strip() == "":
-        await bot.send_message(DEBUG_CHAT, f"LLM{chat_id} - пустой ответ от LLM")
+        logger.error(f"LLM{chat_id} - пустой ответ от LLM")
         return None
 
     # Сохраняем ответ в историю

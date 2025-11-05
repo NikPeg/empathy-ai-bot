@@ -11,7 +11,7 @@ import database
 # Импортируем все обработчики (чтобы они зарегистрировались)
 # ВАЖНО: порядок имеет значение! Сначала специфичные (команды), потом общие
 from bot_instance import bot, dp
-from config import DEBUG, DEBUG_CHAT, logger
+from config import DEBUG_CHAT, add_telegram_handler, logger
 
 # isort: off - не сортировать этот блок, порядок критичен!
 from handlers import user_handlers  # noqa: F401
@@ -25,9 +25,19 @@ from services.reminder_service import reminder_loop
 async def main():
     """Главная функция запуска бота."""
     # Инициализация базы данных
-    print(await database.check_db())
-    print("Основная часть запущена")
-    print("Нажмите Ctrl-C для остановки бота\n")
+    db_status = await database.check_db()
+
+    # Добавляем Telegram handler после инициализации бота
+    add_telegram_handler(logger, bot)
+
+    # Простые сообщения для docker logs (в консоль)
+    print("=" * 50)
+    print("🤖 БОТ ЗАПУЩЕН")
+    print("=" * 50)
+    print(f"Database: {db_status}")
+    print(f"Debug chat: {DEBUG_CHAT}")
+    print("Нажмите Ctrl-C для остановки бота")
+    print("=" * 50 + "\n")
 
     # Создаем задачу для напоминаний
     reminder_task = asyncio.create_task(reminder_loop())
@@ -38,9 +48,6 @@ async def main():
     except (KeyboardInterrupt, SystemExit):
         print("\n🛑 Получен сигнал остановки")
     except Exception as e:
-        print(f"Ошибка: {e}")
-        if DEBUG:
-            await bot.send_message(DEBUG_CHAT, f"Произошла ошибка: '{e}'")
         logger.critical(f"CRITICAL_ERROR: {e}", exc_info=True)
     finally:
         print("Останавливаем бота...")

@@ -7,8 +7,8 @@ from aiogram.filters.command import Command
 from aiogram.types import ReplyKeyboardRemove
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
-from bot_instance import bot, dp
-from config import DEBUG_CHAT, MESSAGES
+from bot_instance import dp
+from config import DEBUG_CHAT, MESSAGES, logger
 from database import User
 from filters import OldMessage, UserNotInDB
 from utils import forward_to_debug
@@ -31,9 +31,7 @@ async def registration(message: types.Message):
 
     if len(args) > 1:
         referral_code = args[1]
-        await bot.send_message(
-            DEBUG_CHAT, f"Переход по реф.ссылке, код: {referral_code}"
-        )
+        logger.info(f"Переход по реф.ссылке, код: {referral_code}")
 
     user = message.from_user
     # Используем имя пользователя (first_name), если нет - username, если и его нет - placeholder

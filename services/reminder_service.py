@@ -12,7 +12,6 @@ from aiogram.exceptions import TelegramForbiddenError
 import database
 from bot_instance import bot
 from config import (
-    DEBUG_CHAT,
     DEFAULT_PROMPT,
     DELAYED_REMINDERS_HOURS,
     DELAYED_REMINDERS_MINUTES,
@@ -81,11 +80,11 @@ async def send_reminder_to_user(user_id: int):
     try:
         llm_msg = await send_request_to_openrouter(prompt_for_request)
     except Exception as e:
-        await bot.send_message(DEBUG_CHAT, f"LLM{user_id} - Критическая ошибка: {e}")
+        logger.error(f"LLM{user_id} - Критическая ошибка: {e}", exc_info=True)
         return
 
     if llm_msg is None or llm_msg.strip() == "":
-        await bot.send_message(DEBUG_CHAT, f"LLM{user_id} - пустой ответ от LLM")
+        logger.error(f"LLM{user_id} - пустой ответ от LLM")
         return
 
     # Сохраняем ответ в историю
@@ -114,9 +113,7 @@ async def send_reminder_to_user(user_id: int):
             except TelegramForbiddenError:
                 user.remind_of_yourself = 0
                 await user.update_in_db()
-                await bot.send_message(
-                    DEBUG_CHAT, f"USER{user_id} заблокировал чатбота"
-                )
+                logger.warning(f"USER{user_id} заблокировал чатбота")
                 return
             except Exception as e:
                 # Пробуем отправить без форматирования
@@ -128,8 +125,7 @@ async def send_reminder_to_user(user_id: int):
                     await forward_to_debug(user_id, generated_message.message_id)
                 except Exception:
                     pass
-                await bot.send_message(DEBUG_CHAT, f"LLM{user_id} - {e}")
-                logger.error(f"LLM{user_id} - {e}")
+                logger.error(f"LLM{user_id} - {e}", exc_info=True)
 
             start += 4096
 
