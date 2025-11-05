@@ -8,7 +8,6 @@ import json
 from collections import defaultdict
 from datetime import datetime
 from io import BytesIO
-from typing import Optional
 
 import aiosqlite
 import matplotlib
@@ -31,7 +30,7 @@ WEEKDAY_NAMES = {
 }
 
 
-async def get_user_timestamps(user_id: Optional[int] = None) -> list[datetime]:
+async def get_user_timestamps(user_id: int | None = None) -> list[datetime]:
     """
     Получает все timestamps из базы данных для указанного пользователя или всех пользователей.
 
@@ -76,7 +75,7 @@ async def get_user_timestamps(user_id: Optional[int] = None) -> list[datetime]:
 
 
 async def generate_hourly_stats(
-    timestamps: list[datetime], user_id: Optional[int] = None
+    timestamps: list[datetime], user_id: int | None = None
 ) -> BytesIO:
     """
     Генерирует график статистики по часам суток.
@@ -104,7 +103,7 @@ async def generate_hourly_stats(
     # Подсвечиваем максимальные значения
     if counts:
         max_count = max(counts)
-        for bar, count in zip(bars, counts):
+        for bar, count in zip(bars, counts, strict=True):
             if count == max_count and count > 0:
                 bar.set_color("orange")
                 bar.set_edgecolor("darkred")
@@ -139,7 +138,7 @@ async def generate_hourly_stats(
 
 
 async def generate_weekly_stats(
-    timestamps: list[datetime], user_id: Optional[int] = None
+    timestamps: list[datetime], user_id: int | None = None
 ) -> BytesIO:
     """
     Генерирует график статистики по дням недели.
@@ -168,7 +167,7 @@ async def generate_weekly_stats(
     # Подсвечиваем максимальные значения
     if counts:
         max_count = max(counts)
-        for bar, count in zip(bars, counts):
+        for bar, count in zip(bars, counts, strict=True):
             if count == max_count and count > 0:
                 bar.set_color("gold")
                 bar.set_edgecolor("darkred")
@@ -203,7 +202,7 @@ async def generate_weekly_stats(
 
 
 async def generate_user_stats(
-    user_id: Optional[int] = None,
+    user_id: int | None = None,
 ) -> tuple[BytesIO, BytesIO, int]:
     """
     Генерирует статистику для пользователя (или всех пользователей).
