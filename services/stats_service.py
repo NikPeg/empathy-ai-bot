@@ -46,12 +46,12 @@ async def get_user_timestamps(user_id: int | None = None) -> list[datetime]:
         cursor = await db.cursor()
 
         if user_id is not None:
-            # Получаем данные конкретного пользователя
-            sql = f"SELECT prompt FROM {TABLE_NAME} WHERE id = ?"
+            # Получаем данные конкретного пользователя с timestamp
+            sql = f"SELECT prompt FROM {TABLE_NAME} WHERE id = ? AND prompt LIKE '%\"timestamp\"%'"
             await cursor.execute(sql, (user_id,))
         else:
-            # Получаем данные всех пользователей
-            sql = f"SELECT prompt FROM {TABLE_NAME}"
+            # Получаем данные всех пользователей с timestamp
+            sql = f"SELECT prompt FROM {TABLE_NAME} WHERE prompt LIKE '%\"timestamp\"%'"
             await cursor.execute(sql)
 
         rows = await cursor.fetchall()
@@ -62,13 +62,12 @@ async def get_user_timestamps(user_id: int | None = None) -> list[datetime]:
                 try:
                     prompt_data = json.loads(row[0])
                     for entry in prompt_data:
-                        if isinstance(entry, dict) and "timestamp" in entry:
-                            # Парсим timestamp
+                        if isinstance(entry, dict) and "timestamp" in entry and entry["timestamp"]:
                             dt = datetime.strptime(
                                 entry["timestamp"], "%Y-%m-%d %H:%M:%S"
                             )
                             timestamps.append(dt)
-                except (json.JSONDecodeError, ValueError):
+                except (json.JSONDecodeError, ValueError, TypeError):
                     continue
 
     return timestamps
