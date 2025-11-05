@@ -119,7 +119,7 @@ jobs:
         docker rm $CONTAINER_NAME || true
         
         # Create directories
-        mkdir -p /opt/empathy-bot/data /opt/empathy-bot/logs
+        mkdir -p /opt/empathy-bot/data
         
         # Login to Yandex Container Registry
         echo "Logging in to Yandex Container Registry..."
@@ -150,7 +150,6 @@ jobs:
           -e TO_TIME="${{ secrets.TO_TIME || '23' }}" \
           -e ADMIN_LIST="${{ secrets.ADMIN_LIST || '' }}" \
           -v /opt/empathy-bot/data:/data \
-          -v /opt/empathy-bot/logs:/app/debug.log \
           $IMAGE_URL
         
         # Clean up old images
