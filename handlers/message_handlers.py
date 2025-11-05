@@ -23,6 +23,18 @@ async def handle_text_message(message: types.Message):
 
     logger.info(f"USER{message.chat.id}TOLLM:{message.text}")
     await forward_to_debug(message.chat.id, message.message_id)
+    
+    # Обновляем имя пользователя в базе данных (если изменилось)
+    user_obj = User(message.chat.id)
+    await user_obj.get_from_db()
+    if message.from_user:
+        new_name = message.from_user.first_name if message.from_user.first_name else (
+            message.from_user.username if message.from_user.username else "Not_of_registration"
+        )
+        if user_obj.name != new_name and new_name != "Not_of_registration":
+            user_obj.name = new_name
+            await user_obj.update_in_db()
+            logger.debug(f"USER{message.chat.id} имя обновлено: {new_name}")
 
     # Запускаем индикатор печати
     typing_task = asyncio.create_task(keep_typing(message.chat.id))

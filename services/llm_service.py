@@ -77,9 +77,9 @@ async def process_user_message(chat_id: int, message_text: str) -> str | None:
     # Формируем системный промпт с подстановкой данных
     system_content = DEFAULT_PROMPT.replace("{CURRENTDATE}", current_date)
     
-    # Добавляем username если он есть и не "Not_of_registration"
+    # Добавляем имя пользователя если оно есть и не "Not_of_registration"
     if user.name and user.name != "Not_of_registration":
-        username_info = f" 6. Ник пользователя: @{user.name}"
+        username_info = f"6. Имя пользователя: {user.name}"
         system_content = system_content.replace("{USERNAME}", username_info)
     else:
         system_content = system_content.replace("{USERNAME}", "")

@@ -53,10 +53,10 @@ async def send_reminder_to_user(user_id: int):
         "%Y-%m-%d %H:%M:%S"
     )
 
-    # Формируем username информацию если она доступна
+    # Формируем информацию об имени пользователя если она доступна
     username_replacement = ""
     if user.name and user.name != "Not_of_registration":
-        username_replacement = f" 6. Ник пользователя: @{user.name}"
+        username_replacement = f"6. Имя пользователя: {user.name}"
 
     # Заменяем плейсхолдеры в REMINDER_PROMPT
     reminder_content = REMINDER_PROMPT.replace("{CURRENTDATE}", current_date)
