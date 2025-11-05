@@ -80,31 +80,74 @@ python main.py
 - `/dispatch` — отправить сообщение конкретному пользователю
 - `/dispatch_all` — отправить сообщение всем пользователям
 
+## 🏗 Архитектура
+
+Проект имеет модульную структуру с разделением ответственности:
+
+### Основные модули:
+
+- **`main.py`** — точка входа, запуск приложения
+- **`config.py`** — конфигурация, загрузка переменных окружения, настройка логирования
+- **`bot_instance.py`** — инициализация бота и диспетчера
+- **`database.py`** — модели данных и работа с БД
+- **`llm_client.py`** — клиент для работы с OpenRouter API
+
+### Вспомогательные модули:
+
+- **`filters.py`** — пользовательские фильтры для роутинга сообщений
+- **`states.py`** — FSM состояния для многошаговых диалогов
+- **`utils.py`** — общие утилиты (typing indicator, debug forwarding)
+
+### Обработчики (handlers/):
+
+- **`user_handlers.py`** — команды пользователей (/start, /help, /forget, etc.)
+- **`admin_handlers.py`** — команды администраторов (/dispatch, /dispatch_all)
+- **`message_handlers.py`** — обработка текстовых сообщений
+
+### Сервисы (services/):
+
+- **`llm_service.py`** — логика взаимодействия с LLM, обработка запросов
+- **`reminder_service.py`** — логика напоминаний, фоновая задача
+
 ## 🗂 Структура проекта
 
 ```
 empathy-ai-bot/
 ├── .github/
 │   └── workflows/
-│       └── deploy.yml     # GitHub Actions CI/CD
-├── config/                 # Конфигурационные файлы
-│   ├── prompts.json       # Системные промпты для LLM
-│   └── messages.json      # Шаблоны сообщений
-├── docs/                   # Документация
-│   ├── quickstart.md      # Быстрый старт за 3 минуты
-│   ├── deployment.md      # Полное руководство по развертыванию
-│   └── ci-cd.md          # Настройка автодеплоя
-├── data/                   # База данных (создается автоматически)
-├── main.py                 # Основная логика бота
-├── llm_client.py           # Интеграция с OpenRouter API
-├── database.py             # Работа с базой данных
-├── requirements.txt       # Зависимости Python
-├── Dockerfile             # Docker образ
-├── docker-compose.yml     # Docker Compose конфигурация
-├── .dockerignore          # Исключения для Docker
-├── README.md              # Основная документация
-├── .env.example           # Пример переменных окружения
-└── .gitignore             # Игнорируемые файлы
+│       └── deploy.yml         # GitHub Actions CI/CD
+├── config/                     # Конфигурационные файлы
+│   ├── prompts.json           # Системные промпты для LLM
+│   └── messages.json          # Шаблоны сообщений
+├── docs/                       # Документация
+│   ├── quickstart.md          # Быстрый старт за 3 минуты
+│   ├── deployment.md          # Полное руководство по развертыванию
+│   └── ci-cd.md              # Настройка автодеплоя
+├── handlers/                   # Обработчики команд и сообщений
+│   ├── __init__.py
+│   ├── user_handlers.py       # Пользовательские команды
+│   ├── admin_handlers.py      # Администраторские команды
+│   └── message_handlers.py    # Обработка текстовых сообщений
+├── services/                   # Бизнес-логика
+│   ├── __init__.py
+│   ├── llm_service.py         # Работа с LLM
+│   └── reminder_service.py    # Логика напоминаний
+├── data/                       # База данных (создается автоматически)
+├── main.py                     # Точка входа приложения
+├── config.py                   # Конфигурация и настройки
+├── bot_instance.py             # Инициализация бота
+├── filters.py                  # Пользовательские фильтры
+├── states.py                   # FSM состояния
+├── utils.py                    # Вспомогательные функции
+├── llm_client.py               # Клиент OpenRouter API
+├── database.py                 # Работа с базой данных
+├── requirements.txt           # Зависимости Python
+├── Dockerfile                 # Docker образ
+├── docker-compose.yml         # Docker Compose конфигурация
+├── .dockerignore              # Исключения для Docker
+├── README.md                  # Основная документация
+├── .env.example               # Пример переменных окружения
+└── .gitignore                 # Игнорируемые файлы
 ```
 
 ## 🗄 База данных

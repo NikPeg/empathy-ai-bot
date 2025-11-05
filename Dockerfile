@@ -18,8 +18,15 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 # Копируем код приложения
 COPY main.py .
+COPY config.py .
+COPY bot_instance.py .
+COPY filters.py .
+COPY states.py .
+COPY utils.py .
 COPY llm_client.py .
 COPY database.py .
+COPY handlers/ ./handlers/
+COPY services/ ./services/
 COPY config/ ./config/
 
 # Создаем директорию для базы данных и логов
