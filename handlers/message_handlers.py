@@ -15,9 +15,9 @@ from services.llm_service import process_user_message
 from utils import forward_to_debug, keep_typing
 
 
-@dp.message(F.text)
+@dp.message(F.text & ~F.text.startswith('/'))
 async def handle_text_message(message: types.Message):
-    """Обработка текстовых сообщений через LLM."""
+    """Обработка текстовых сообщений через LLM (исключая команды)."""
     if DEBUG:
         await bot.send_message(DEBUG_CHAT, f"USER{message.chat.id}:")
 

@@ -8,9 +8,10 @@ import contextlib
 import database
 
 # Импортируем все обработчики (чтобы они зарегистрировались)
+# ВАЖНО: порядок имеет значение! Сначала специфичные (команды), потом общие
 from bot_instance import bot, dp
 from config import DEBUG, DEBUG_CHAT, logger
-from handlers import admin_handlers, message_handlers, user_handlers  # noqa: F401
+from handlers import user_handlers, admin_handlers, message_handlers  # noqa: F401
 from services.reminder_service import reminder_loop
 
 
