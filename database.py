@@ -134,30 +134,30 @@ class User:
                 """,
                 (self.id, role, new_request, timestamp)
             )
-            
+
             # Проверяем количество сообщений и удаляем старые, если превышен лимит
             async with db.execute(
                 "SELECT COUNT(*) FROM messages WHERE user_id = ?",
                 (self.id,)
             ) as cursor:
                 count = (await cursor.fetchone())[0]
-            
+
             if count > MAX_STORAGE:
                 # Удаляем самые старые сообщения, оставляя только MAX_STORAGE последних
                 await db.execute(
                     """
-                    DELETE FROM messages 
-                    WHERE user_id = ? 
+                    DELETE FROM messages
+                    WHERE user_id = ?
                     AND id NOT IN (
-                        SELECT id FROM messages 
-                        WHERE user_id = ? 
-                        ORDER BY id DESC 
+                        SELECT id FROM messages
+                        WHERE user_id = ?
+                        ORDER BY id DESC
                         LIMIT ?
                     )
                     """,
                     (self.id, self.id, MAX_STORAGE)
                 )
-            
+
             await db.commit()
 
     async def get_context_for_llm(self):
@@ -172,28 +172,28 @@ class User:
             if self.active_messages_count == 0:
                 # Забыть всё
                 return []
-            elif self.active_messages_count is None:
+            if self.active_messages_count is None:
                 # Все сообщения (но не больше MAX_CONTEXT)
                 limit = MAX_CONTEXT
             else:
                 # Последние N сообщений (но не больше MAX_CONTEXT)
                 limit = min(self.active_messages_count, MAX_CONTEXT)
-            
+
             # Получаем сообщения
             async with db.execute(
                 """
-                SELECT role, content, timestamp 
-                FROM messages 
-                WHERE user_id = ? 
-                ORDER BY id DESC 
+                SELECT role, content, timestamp
+                FROM messages
+                WHERE user_id = ?
+                ORDER BY id DESC
                 LIMIT ?
                 """,
                 (self.id, limit)
             ) as cursor:
                 rows = await cursor.fetchall()
-            
+
             # Переворачиваем список (самые старые сначала)
-            messages = [
+            return [
                 {
                     "role": row[0],
                     "content": row[1],
@@ -201,8 +201,6 @@ class User:
                 }
                 for row in reversed(rows)
             ]
-            
-            return messages
 
     async def update_in_db(self):
         async with aiosqlite.connect(DATABASE_NAME) as db:
