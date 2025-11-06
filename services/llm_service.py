@@ -117,6 +117,12 @@ async def process_user_message(chat_id: int, message_text: str) -> str | None:
         normalize_whitespace=False,
     )
 
+    # Увеличиваем счетчик активных сообщений (если он используется)
+    # +2 потому что добавили пару: user message + assistant message
+    if user.active_messages_count is not None:
+        user.active_messages_count += 2
+        logger.debug(f"USER{chat_id} active_messages_count увеличен до {user.active_messages_count}")
+
     # Обновляем время следующего напоминания
     user.remind_of_yourself = await database.time_after(
         DELAYED_REMINDERS_HOURS,
