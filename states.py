@@ -16,3 +16,9 @@ class AdminDispatchAll(StatesGroup):
     """Состояния для массовой рассылки всем пользователям."""
 
     input_text = State()
+
+
+class AdminSetReminderTimes(StatesGroup):
+    """Состояния для установки времен напоминаний пользователю."""
+
+    input_times = State()

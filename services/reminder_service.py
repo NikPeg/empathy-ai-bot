@@ -120,14 +120,9 @@ async def send_reminder_to_user(user_id: int):
 
             start += 4096
 
-        # Обновляем время следующего напоминания
-        user.remind_of_yourself = await database.time_after(
-            DELAYED_REMINDERS_HOURS,
-            DELAYED_REMINDERS_MINUTES,
-            TIMEZONE_OFFSET,
-            FROM_TIME,
-            TO_TIME,
-        )
+        # Обновляем время последнего напоминания (используется для предотвращения дублей)
+        now_msk = datetime.now(timezone(timedelta(hours=TIMEZONE_OFFSET)))
+        user.remind_of_yourself = now_msk.strftime("%Y-%m-%d %H:%M:%S")
         await user.update_in_db()
 
         logger.info(f"LLM{user_id}REMINDER - {generated_message.text}")
@@ -157,10 +152,10 @@ async def reminder_loop():
     while True:
         try:
             await check_and_send_reminders()
-            await asyncio.sleep(30)
+            await asyncio.sleep(900)  # 15 минут = 900 секунд
         except asyncio.CancelledError:
             print("Цикл напоминаний остановлен")
             break
         except Exception as e:
             logger.error(f"Ошибка в цикле напоминаний: {e}")
-            await asyncio.sleep(30)
+            await asyncio.sleep(900)  # 15 минут = 900 секунд

@@ -33,9 +33,12 @@ class User:
         sub_period=-1,
         is_admin=0,
         active_messages_count=None,
+        reminder_times=None,
     ):
         if prompt is None:
             prompt = []
+        if reminder_times is None:
+            reminder_times = ["19:15"]
         self.id = id
         self.name = name
         self.prompt = prompt  # Оставляем для обратной совместимости
@@ -45,6 +48,7 @@ class User:
         self.sub_period = sub_period
         self.is_admin = is_admin
         self.active_messages_count = active_messages_count  # NULL = все, 0 = забыть, N = последние N
+        self.reminder_times = reminder_times  # Список времен напоминаний в формате HH:MM (МСК)
 
     def __repr__(self):
         return f"User(id={self.id}, \n name={self.name}, \n prompt={self.prompt}, \n remind_of_yourself={self.remind_of_yourself}, \n sub_lvl={self.sub_lvl}, \n sub_id={self.sub_id}, \n sub_period={self.sub_period}, \n is_admin={self.is_admin})"
@@ -65,6 +69,7 @@ class User:
                 self.sub_period = row[6]
                 self.is_admin = row[7]
                 self.active_messages_count = row[8] if len(row) > 8 else None
+                self.reminder_times = json.loads(row[9]) if len(row) > 9 and row[9] else ["19:15"]
 
     async def __call__(self, user_id):
         async with aiosqlite.connect(DATABASE_NAME) as db:
@@ -83,6 +88,7 @@ class User:
                     sub_period=row[6],
                     is_admin=row[7],
                     active_messages_count=row[8] if len(row) > 8 else None,
+                    reminder_times=json.loads(row[9]) if len(row) > 9 and row[9] else ["19:15"],
                 )
             return None
 
@@ -98,8 +104,8 @@ class User:
         async with aiosqlite.connect(DATABASE_NAME) as db:
             cursor = await db.cursor()
             sql_insert = f"""
-                        INSERT INTO {TABLE_NAME} (id, name, prompt, remind_of_yourself, sub_lvl, sub_id, sub_period, is_admin, active_messages_count)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        INSERT INTO {TABLE_NAME} (id, name, prompt, remind_of_yourself, sub_lvl, sub_id, sub_period, is_admin, active_messages_count, reminder_times)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """
             values = (
                 self.id,
@@ -111,6 +117,7 @@ class User:
                 self.sub_period,
                 self.is_admin,
                 self.active_messages_count,
+                json.dumps(self.reminder_times),
             )
             await cursor.execute(sql_insert, values)
             await db.commit()
@@ -207,7 +214,7 @@ class User:
             cursor = await db.cursor()
             sql_query = f"""
                 UPDATE {TABLE_NAME}
-                SET name = ?, prompt = ?, remind_of_yourself = ?, sub_lvl = ?, sub_id = ?, sub_period = ?, is_admin = ?, active_messages_count = ?
+                SET name = ?, prompt = ?, remind_of_yourself = ?, sub_lvl = ?, sub_id = ?, sub_period = ?, is_admin = ?, active_messages_count = ?, reminder_times = ?
                 WHERE id = ?
             """
             values = (
@@ -219,6 +226,7 @@ class User:
                 self.sub_period,
                 self.is_admin,
                 self.active_messages_count,
+                json.dumps(self.reminder_times),
                 self.id,
             )
             await cursor.execute(sql_query, values)
@@ -282,25 +290,65 @@ async def time_after(
 
 
 async def get_past_dates():
+    """
+    Получает список пользователей, которым нужно отправить напоминание.
+    Проверяет, наступило ли время из списка reminder_times.
+    
+    Returns:
+        Список user_id пользователей, которым нужно отправить напоминание
+    """
     past_user_ids = []
     async with aiosqlite.connect(DATABASE_NAME) as db:
         async with db.execute("PRAGMA journal_mode=WAL;") as cursor:
             await cursor.fetchone()
 
-        now = datetime.now()
+        # Получаем текущее время в МСК (UTC+3)
+        now_msk = datetime.now(timezone(timedelta(hours=TIMEZONE_OFFSET)))
+        current_time_str = now_msk.strftime("%H:%M")
+        current_hour = now_msk.hour
+        current_minute = now_msk.minute
 
-        query = f"SELECT {'id'}, {'remind_of_yourself'} FROM {TABLE_NAME}"
+        query = f"SELECT id, reminder_times, remind_of_yourself FROM {TABLE_NAME}"
 
         async with db.execute(query) as cursor:
             results = await cursor.fetchall()
+        
         for row in results:
             user_id = row[0]
-            date_str = row[1]
-            if date_str == "0":
+            reminder_times_json = row[1]
+            remind_of_yourself = row[2]
+            
+            # Пропускаем пользователей с отключенными напоминаниями
+            if remind_of_yourself == "0":
                 continue
-            date_from_db = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
-            if date_from_db < now:
-                past_user_ids.append(user_id)
+            
+            # Парсим список времен напоминаний
+            try:
+                reminder_times = json.loads(reminder_times_json) if reminder_times_json else ["19:15"]
+            except json.JSONDecodeError:
+                reminder_times = ["19:15"]
+            
+            # Проверяем, наступило ли одно из времен напоминаний
+            for reminder_time in reminder_times:
+                try:
+                    reminder_hour, reminder_minute = map(int, reminder_time.split(":"))
+                    
+                    # Проверяем, что текущее время находится в пределах 15 минут от времени напоминания
+                    # (так как проверка происходит каждые 15 минут)
+                    time_diff = (current_hour * 60 + current_minute) - (reminder_hour * 60 + reminder_minute)
+                    
+                    # Если время напоминания наступило (в пределах последних 15 минут)
+                    if 0 <= time_diff < 15:
+                        # Проверяем, что мы еще не отправляли напоминание в этот период
+                        last_reminder = datetime.strptime(remind_of_yourself, "%Y-%m-%d %H:%M:%S")
+                        
+                        # Если последнее напоминание было более часа назад - отправляем
+                        if (now_msk.replace(tzinfo=None) - last_reminder).total_seconds() > 3600:
+                            past_user_ids.append(user_id)
+                            break  # Нашли подходящее время, выходим из цикла
+                        
+                except (ValueError, AttributeError):
+                    continue
 
     return past_user_ids
 
