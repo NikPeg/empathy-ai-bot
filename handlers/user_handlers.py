@@ -77,13 +77,20 @@ async def cmd_help(message: types.Message):
     help_message = MESSAGES["msg_help_admin"] if is_admin else MESSAGES["msg_help"]
 
     try:
-        sent_msg = await message.answer(
-            help_message, reply_markup=ReplyKeyboardRemove(), parse_mode="Markdown"
-        )
+        # Для админа отправляем без Markdown (только эмодзи и структурированный текст)
+        if is_admin:
+            sent_msg = await message.answer(
+                help_message, reply_markup=ReplyKeyboardRemove()
+            )
+        else:
+            # Для обычных пользователей используем Markdown
+            sent_msg = await message.answer(
+                help_message, reply_markup=ReplyKeyboardRemove(), parse_mode="Markdown"
+            )
         logger.info(f"Сообщение /help успешно отправлено пользователю {message.chat.id}")
     except Exception as e:
-        # Если не получилось с Markdown, пробуем без форматирования
-        logger.error(f"Ошибка при отправке /help с Markdown для USER{message.chat.id}: {e}", exc_info=True)
+        # Если не получилось, пробуем без форматирования
+        logger.error(f"Ошибка при отправке /help для USER{message.chat.id}: {e}", exc_info=True)
         try:
             sent_msg = await message.answer(
                 help_message, reply_markup=ReplyKeyboardRemove()
