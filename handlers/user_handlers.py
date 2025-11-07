@@ -43,8 +43,10 @@ async def registration(message: types.Message):
     sent_msg = await message.answer(
         MESSAGES["msg_start"], reply_markup=builder.as_markup()
     )
-    await forward_to_debug(message.chat.id, message.message_id)
-    await forward_to_debug(message.chat.id, sent_msg.message_id)
+    # Не пересылаем сообщения из админ-чата в админ-чат
+    if message.chat.id != ADMIN_CHAT:
+        await forward_to_debug(message.chat.id, message.message_id)
+        await forward_to_debug(message.chat.id, sent_msg.message_id)
 
 
 @dp.message(Command("start"))
@@ -53,8 +55,10 @@ async def cmd_start(message: types.Message):
     sent_msg = await message.answer(
         MESSAGES["msg_start"], reply_markup=ReplyKeyboardRemove()
     )
-    await forward_to_debug(message.chat.id, message.message_id)
-    await forward_to_debug(message.chat.id, sent_msg.message_id)
+    # Не пересылаем сообщения из админ-чата в админ-чат
+    if message.chat.id != ADMIN_CHAT:
+        await forward_to_debug(message.chat.id, message.message_id)
+        await forward_to_debug(message.chat.id, sent_msg.message_id)
 
 
 @dp.message(Command("help"))
@@ -63,14 +67,23 @@ async def cmd_help(message: types.Message):
     # Проверяем, является ли пользователь администратором
     is_admin = message.chat.id == ADMIN_CHAT
 
+    # Логируем вызов команды
+    if is_admin:
+        logger.info(f"Команда /help получена от администратора {message.chat.id}")
+    else:
+        logger.debug(f"Команда /help получена от пользователя {message.chat.id}")
+
     # Выбираем соответствующее сообщение
     help_message = MESSAGES["msg_help_admin"] if is_admin else MESSAGES["msg_help"]
 
     sent_msg = await message.answer(
         help_message, reply_markup=ReplyKeyboardRemove(), parse_mode="Markdown"
     )
-    await forward_to_debug(message.chat.id, message.message_id)
-    await forward_to_debug(message.chat.id, sent_msg.message_id)
+
+    # Не пересылаем сообщения из админ-чата в админ-чат
+    if not is_admin:
+        await forward_to_debug(message.chat.id, message.message_id)
+        await forward_to_debug(message.chat.id, sent_msg.message_id)
 
 
 @dp.message(Command("forget"))
@@ -88,8 +101,10 @@ async def cmd_forget(message: types.Message):
     user.active_messages_count = 0  # Не передавать сообщения в контекст
     await user.update_in_db()
 
-    await forward_to_debug(message.chat.id, message.message_id)
-    await forward_to_debug(message.chat.id, sent_msg.message_id)
+    # Не пересылаем сообщения из админ-чата в админ-чат
+    if message.chat.id != ADMIN_CHAT:
+        await forward_to_debug(message.chat.id, message.message_id)
+        await forward_to_debug(message.chat.id, sent_msg.message_id)
 
 
 @dp.message(Command("mute"))
@@ -103,5 +118,7 @@ async def cmd_mute(message: types.Message):
     user.remind_of_yourself = "0"
     await user.update_in_db()
 
-    await forward_to_debug(message.chat.id, message.message_id)
-    await forward_to_debug(message.chat.id, sent_msg.message_id)
+    # Не пересылаем сообщения из админ-чата в админ-чат
+    if message.chat.id != ADMIN_CHAT:
+        await forward_to_debug(message.chat.id, message.message_id)
+        await forward_to_debug(message.chat.id, sent_msg.message_id)
