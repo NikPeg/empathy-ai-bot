@@ -76,6 +76,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Copy docker-compose.prod.yml to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.YC_INSTANCE_IP }}
+          username: ${{ secrets.YC_INSTANCE_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "docker-compose.prod.yml"
+          target: "~/empathy-bot/"
 
       - name: Deploy to server via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -161,52 +170,27 @@ jobs:
             start_container() {
               echo "🚀 Запускаем контейнер через docker-compose..."
               
-              # Создаем docker-compose.prod.yml если его нет
-              if [ ! -f "$DEPLOY_DIR/docker-compose.prod.yml" ]; then
-                echo "📝 Создаем docker-compose.prod.yml..."
-                cat > "$DEPLOY_DIR/docker-compose.prod.yml" << 'COMPOSE_EOF'
-services:
-  empathy-bot:
-    image: cr.yandex/${YC_REGISTRY_ID}/empathy-bot:latest
-    container_name: empathy-ai-bot
-    restart: unless-stopped
-    env_file:
-      - .env
-    volumes:
-      - ./data:/data
-      - ./logs:/app/logs
-    environment:
-      - DATABASE_NAME=/data/users.db
-    healthcheck:
-      test: ["CMD-SHELL", "pgrep -f 'python.*main.py' || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-COMPOSE_EOF
-              fi
-              
               # Создаем .env файл со всеми переменными окружения
               echo "📝 Создаем .env файл..."
-              cat > "$DEPLOY_DIR/.env" << ENV_EOF
-TG_TOKEN=$TG_TOKEN
-LLM_TOKEN=$LLM_TOKEN
-ADMIN_CHAT=$ADMIN_CHAT
-MODEL=$MODEL
-DEBUG=$DEBUG
-TABLE_NAME=$TABLE_NAME
-MAX_CONTEXT=$MAX_CONTEXT
-MAX_STORAGE=$MAX_STORAGE
-DELAYED_REMINDERS_HOURS=$DELAYED_REMINDERS_HOURS
-DELAYED_REMINDERS_MINUTES=$DELAYED_REMINDERS_MINUTES
-TIMEZONE_OFFSET=$TIMEZONE_OFFSET
-FROM_TIME=$FROM_TIME
-TO_TIME=$TO_TIME
-ADMIN_LIST=$ADMIN_LIST
-REQUIRED_CHANNELS=$REQUIRED_CHANNELS
-FILE_LOG_LEVEL=$FILE_LOG_LEVEL
-TELEGRAM_LOG_LEVEL=$TELEGRAM_LOG_LEVEL
-ENV_EOF
+              {
+                echo "TG_TOKEN=$TG_TOKEN"
+                echo "LLM_TOKEN=$LLM_TOKEN"
+                echo "ADMIN_CHAT=$ADMIN_CHAT"
+                echo "MODEL=$MODEL"
+                echo "DEBUG=$DEBUG"
+                echo "TABLE_NAME=$TABLE_NAME"
+                echo "MAX_CONTEXT=$MAX_CONTEXT"
+                echo "MAX_STORAGE=$MAX_STORAGE"
+                echo "DELAYED_REMINDERS_HOURS=$DELAYED_REMINDERS_HOURS"
+                echo "DELAYED_REMINDERS_MINUTES=$DELAYED_REMINDERS_MINUTES"
+                echo "TIMEZONE_OFFSET=$TIMEZONE_OFFSET"
+                echo "FROM_TIME=$FROM_TIME"
+                echo "TO_TIME=$TO_TIME"
+                echo "ADMIN_LIST=$ADMIN_LIST"
+                echo "REQUIRED_CHANNELS=$REQUIRED_CHANNELS"
+                echo "FILE_LOG_LEVEL=$FILE_LOG_LEVEL"
+                echo "TELEGRAM_LOG_LEVEL=$TELEGRAM_LOG_LEVEL"
+              } > "$DEPLOY_DIR/.env"
               
               # Запускаем через docker-compose
               cd "$DEPLOY_DIR"
