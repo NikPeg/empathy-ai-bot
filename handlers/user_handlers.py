@@ -44,11 +44,11 @@ async def registration(message: types.Message):
     sent_msg = await message.answer(
         MESSAGES["msg_start"], reply_markup=builder.as_markup()
     )
-    
+
     # Если есть обязательные каналы, показываем сообщение о подписке
     if REQUIRED_CHANNELS and message.chat.id != ADMIN_CHAT:
         await send_subscription_request(message.chat.id)
-    
+
     # Не пересылаем сообщения из админ-чата в админ-чат
     if message.chat.id != ADMIN_CHAT:
         await forward_to_debug(message.chat.id, message.message_id)
@@ -61,16 +61,16 @@ async def cmd_start(message: types.Message):
     sent_msg = await message.answer(
         MESSAGES["msg_start"], reply_markup=ReplyKeyboardRemove()
     )
-    
+
     # Проверяем статус подписки, если есть обязательные каналы
     if REQUIRED_CHANNELS and message.chat.id != ADMIN_CHAT:
         user = User(message.chat.id)
         await user.get_from_db()
-        
+
         # Если пользователь не подписан, показываем сообщение
         if user.subscription_verified == 0:
             await send_subscription_request(message.chat.id)
-    
+
     # Не пересылаем сообщения из админ-чата в админ-чат
     if message.chat.id != ADMIN_CHAT:
         await forward_to_debug(message.chat.id, message.message_id)

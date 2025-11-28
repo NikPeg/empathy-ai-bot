@@ -22,7 +22,7 @@ async def upgrade():
         cursor = await db.execute(f"PRAGMA table_info({TABLE_NAME})")
         columns = await cursor.fetchall()
         column_names = [col[1] for col in columns]
-        
+
         if "subscription_verified" not in column_names:
             # Добавляем столбец subscription_verified (0 = не подписан, 1 = подписан, NULL = не проверялось)
             await db.execute(
@@ -32,10 +32,9 @@ async def upgrade():
                 """
             )
             await db.commit()
-            
+
             return "Добавлено поле subscription_verified"
-        else:
-            return "Поле subscription_verified уже существует"
+        return "Поле subscription_verified уже существует"
 
 
 async def downgrade():
@@ -53,6 +52,6 @@ async def downgrade():
         await db.execute(f"DROP TABLE {TABLE_NAME}")
         await db.execute(f"ALTER TABLE {TABLE_NAME}_backup RENAME TO {TABLE_NAME}")
         await db.commit()
-        
+
         return "Удалено поле subscription_verified"
 

@@ -16,7 +16,7 @@ def get_subscription_keyboard() -> InlineKeyboardMarkup:
     Создает клавиатуру с кнопками для подписки на каналы.
     """
     buttons = []
-    
+
     # Добавляем кнопки со ссылками на каналы
     for channel in REQUIRED_CHANNELS:
         if channel.startswith("@"):
@@ -26,28 +26,28 @@ def get_subscription_keyboard() -> InlineKeyboardMarkup:
                 url=f"https://t.me/{channel_name}"
             )
             buttons.append([button])
-    
+
     # Добавляем кнопку "Я подписался"
     check_button = InlineKeyboardButton(
         text=MESSAGES["btn_check_subscription"],
         callback_data="check_subscription"
     )
     buttons.append([check_button])
-    
+
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
 async def send_subscription_request(chat_id: int, message_id: int = None):
     """
     Отправляет сообщение с просьбой подписаться на каналы.
-    
+
     Args:
         chat_id: ID чата
         message_id: ID сообщения для ответа (опционально)
     """
     message_text = MESSAGES["msg_subscription_required"]
     keyboard = get_subscription_keyboard()
-    
+
     if message_id:
         await bot.send_message(
             chat_id=chat_id,
@@ -71,51 +71,51 @@ async def process_subscription_check(callback_query: types.CallbackQuery):
     """
     user_id = callback_query.from_user.id
     logger.info(f"USER{user_id}: запрос проверки подписки")
-    
+
     # Показываем индикатор загрузки
     await callback_query.answer("Проверяю подписку...", show_alert=False)
-    
+
     try:
         # Проверяем подписку
         is_subscribed = await is_user_subscribed_to_all(bot, user_id)
-        
+
         if is_subscribed:
             # Пользователь подписан на все каналы
             logger.info(f"USER{user_id}: подписка подтверждена")
-            
+
             # Обновляем статус в БД
             user = User(user_id)
             await user.get_from_db()
             user.subscription_verified = 1
             await user.update_in_db()
-            
+
             # Удаляем сообщение с просьбой подписаться
             await callback_query.message.delete()
-            
+
             # Отправляем подтверждение
             await bot.send_message(
                 chat_id=user_id,
                 text=MESSAGES["msg_subscription_verified"]
             )
-            
+
         else:
             # Пользователь еще не подписан на все каналы
             logger.info(f"USER{user_id}: подписка не подтверждена")
-            
+
             # Показываем уведомление
             error_message = MESSAGES["msg_subscription_check_failed"]
-            
+
             await callback_query.answer(
                 "❌ Вы еще не подписаны на все каналы",
                 show_alert=True
             )
-            
+
             # Обновляем сообщение
             await callback_query.message.edit_text(
                 text=error_message,
                 reply_markup=get_subscription_keyboard()
             )
-    
+
     except Exception as e:
         logger.error(f"Ошибка при проверке подписки USER{user_id}: {e}", exc_info=True)
         await callback_query.answer(
