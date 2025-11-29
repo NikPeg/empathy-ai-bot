@@ -50,6 +50,7 @@ async def bot_added_to_chat(message: types.Message):
 
         # Если есть обязательные каналы, отправляем запрос на подписку
         if REQUIRED_CHANNELS:
+            logger.info(f"CHAT{chat_id}: bot_added_to_chat отправляет запрос подписки")
             await send_subscription_request(chat_id, message.message_id, is_chat=True)
 
 
@@ -76,7 +77,10 @@ async def bot_removed_from_chat(message: types.Message):
 @dp.message(UserNotInDB())
 async def registration(message: types.Message):
     """Регистрация нового пользователя."""
-    args = message.text.split()
+    chat_id = message.chat.id
+    logger.info(f"{'CHAT' if chat_id < 0 else 'USER'}{chat_id}: регистрация нового пользователя/чата")
+
+    args = message.text.split() if message.text else []
 
     if len(args) > 1:
         referral_code = args[1]
@@ -100,6 +104,7 @@ async def registration(message: types.Message):
 
     # Если есть обязательные каналы, показываем сообщение о подписке
     if REQUIRED_CHANNELS and message.chat.id != ADMIN_CHAT:
+        logger.info(f"{'CHAT' if chat_id < 0 else 'USER'}{chat_id}: регистрация отправляет запрос подписки")
         await send_subscription_request(message.chat.id)
 
     # Не пересылаем сообщения из админ-чата в админ-чат
