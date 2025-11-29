@@ -45,6 +45,11 @@ class SubscriptionMiddleware(BaseMiddleware):
         if not isinstance(event, Message):
             return await handler(event, data)
 
+        # Пропускаем проверку для команд /start и /help
+        # (пользователь должен иметь возможность понять, что делает бот)
+        if event.text and event.text.startswith(("/start", "/help")):
+            return await handler(event, data)
+
         # Проверяем, существует ли пользователь в БД
         user_id = event.from_user.id
         if not await user_exists(user_id):
