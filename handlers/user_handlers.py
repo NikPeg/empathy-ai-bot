@@ -67,8 +67,8 @@ async def cmd_start(message: types.Message):
         user = User(message.chat.id)
         await user.get_from_db()
 
-        # Если пользователь не подписан, показываем сообщение
-        if user.subscription_verified == 0:
+        # Если пользователь не подписан (0) или подписка не проверялась (None), показываем сообщение
+        if user.subscription_verified != 1:
             await send_subscription_request(message.chat.id)
 
     # Не пересылаем сообщения из админ-чата в админ-чат

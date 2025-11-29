@@ -11,6 +11,7 @@ from aiogram.exceptions import TelegramForbiddenError
 from bot_instance import bot, dp
 from config import ADMIN_CHAT, MESSAGES, logger
 from database import User
+from handlers.subscription_handlers import send_subscription_request
 from services.llm_service import (
     process_user_image,
     process_user_message,
@@ -46,6 +47,12 @@ async def handle_text_message(message: types.Message):
             user_obj.name = new_name
             await user_obj.update_in_db()
             logger.debug(f"USER{message.chat.id} имя обновлено: {new_name}")
+
+    # Проверяем подписку пользователя перед обработкой
+    if user_obj.subscription_verified != 1:
+        logger.info(f"USER{message.chat.id}: попытка использования без подписки")
+        await send_subscription_request(message.chat.id, message.message_id)
+        return
 
     # Запускаем индикатор печати
     typing_task = asyncio.create_task(keep_typing(message.chat.id))
@@ -123,6 +130,12 @@ async def handle_photo_message(message: types.Message):
             user_obj.name = new_name
             await user_obj.update_in_db()
             logger.debug(f"USER{message.chat.id} имя обновлено: {new_name}")
+
+    # Проверяем подписку пользователя перед обработкой
+    if user_obj.subscription_verified != 1:
+        logger.info(f"USER{message.chat.id}: попытка использования без подписки (фото)")
+        await send_subscription_request(message.chat.id, message.message_id)
+        return
 
     # Запускаем индикатор печати
     typing_task = asyncio.create_task(keep_typing(message.chat.id))
@@ -214,6 +227,12 @@ async def handle_video_message(message: types.Message):
             user_obj.name = new_name
             await user_obj.update_in_db()
             logger.debug(f"USER{message.chat.id} имя обновлено: {new_name}")
+
+    # Проверяем подписку пользователя перед обработкой
+    if user_obj.subscription_verified != 1:
+        logger.info(f"USER{message.chat.id}: попытка использования без подписки (видео)")
+        await send_subscription_request(message.chat.id, message.message_id)
+        return
 
     # Запускаем индикатор печати
     typing_task = asyncio.create_task(keep_typing(message.chat.id))
