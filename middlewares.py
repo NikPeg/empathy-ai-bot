@@ -9,8 +9,9 @@ from aiogram import BaseMiddleware
 from aiogram.types import Message
 
 from config import ADMIN_CHAT, REQUIRED_CHANNELS, logger
-from database import User, user_exists
+from database import ChatVerification, User, user_exists
 from handlers.subscription_handlers import send_subscription_request
+from utils import is_private_chat
 
 
 class SubscriptionMiddleware(BaseMiddleware):
@@ -27,6 +28,8 @@ class SubscriptionMiddleware(BaseMiddleware):
     ) -> Any:
         """
         Проверяет подписку перед обработкой сообщения.
+        Для личных чатов: проверяет subscription_verified пользователя.
+        Для групповых чатов: проверяет наличие записи в chat_verifications.
 
         Args:
             handler: Следующий обработчик в цепочке
@@ -50,28 +53,50 @@ class SubscriptionMiddleware(BaseMiddleware):
         if event.text and event.text.startswith(("/start", "/help")):
             return await handler(event, data)
 
-        # Проверяем, существует ли пользователь в БД
-        user_id = event.from_user.id
-        if not await user_exists(user_id):
-            # Пользователь еще не зарегистрирован, пропускаем проверку
-            # (регистрация покажет сообщение о подписке)
+        # Различаем личные чаты и групповые
+        if is_private_chat(event):
+            # === ЛИЧНЫЙ ЧАТ ===
+            # Проверяем, существует ли пользователь в БД
+            user_id = event.from_user.id
+            if not await user_exists(user_id):
+                # Пользователь еще не зарегистрирован, пропускаем проверку
+                # (регистрация покажет сообщение о подписке)
+                return await handler(event, data)
+
+            # Получаем пользователя из БД
+            user = User(user_id)
+            await user.get_from_db()
+
+            # Проверяем статус подписки
+            if user.subscription_verified == 0:
+                # Пользователь не подписан
+                logger.info(f"USER{user_id}: попытка использования бота без подписки (ЛС)")
+
+                # Отправляем сообщение с просьбой подписаться
+                await send_subscription_request(event.chat.id, event.message_id, is_chat=False)
+
+                # Прерываем обработку
+                return None
+
+            # Если subscription_verified == 1 или NULL, продолжаем обработку
             return await handler(event, data)
-
-        # Получаем пользователя из БД
-        user = User(user_id)
-        await user.get_from_db()
-
-        # Проверяем статус подписки
-        if user.subscription_verified == 0:
-            # Пользователь не подписан
-            logger.info(f"USER{user_id}: попытка использования бота без подписки")
-
-            # Отправляем сообщение с просьбой подписаться
-            await send_subscription_request(event.chat.id, event.message_id)
-
-            # Прерываем обработку
-            return None
-
-        # Если subscription_verified == 1 или NULL, продолжаем обработку
-        return await handler(event, data)
+        else:
+            # === ГРУППОВОЙ ЧАТ ===
+            chat_id = event.chat.id
+            
+            # Проверяем, верифицирован ли чат
+            is_verified = await ChatVerification.is_chat_verified(chat_id)
+            
+            if not is_verified:
+                # Чат не верифицирован
+                logger.info(f"CHAT{chat_id}: попытка использования бота без верификации")
+                
+                # Отправляем сообщение с просьбой подписаться
+                await send_subscription_request(chat_id, event.message_id, is_chat=True)
+                
+                # Прерываем обработку
+                return None
+            
+            # Чат верифицирован, продолжаем обработку
+            return await handler(event, data)
 

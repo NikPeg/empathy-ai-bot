@@ -254,6 +254,91 @@ class User:
             await cursor.close()
 
 
+class ChatVerification:
+    """
+    Класс для хранения информации о верификации чата.
+    Чат считается верифицированным, если хотя бы один участник подтвердил подписку.
+    """
+
+    def __init__(
+        self,
+        chat_id: int,
+        verified_by_user_id: int = None,
+        verified_at: str = None,
+        user_name: str = None,
+    ):
+        self.chat_id = chat_id  # Отрицательный ID чата
+        self.verified_by_user_id = verified_by_user_id  # ID пользователя, который подтвердил
+        self.verified_at = verified_at  # Дата верификации
+        self.user_name = user_name  # Имя верификатора
+
+    def __repr__(self):
+        return f"ChatVerification(chat_id={self.chat_id}, verified_by={self.verified_by_user_id}, at={self.verified_at})"
+
+    async def get_from_db(self):
+        """Загружает информацию о верификации чата из БД."""
+        async with aiosqlite.connect(DATABASE_NAME) as db:
+            cursor = await db.cursor()
+            await cursor.execute(
+                "SELECT chat_id, verified_by_user_id, verified_at, user_name FROM chat_verifications WHERE chat_id = ?",
+                (self.chat_id,)
+            )
+            row = await cursor.fetchone()
+            if row:
+                self.chat_id = row[0]
+                self.verified_by_user_id = row[1]
+                self.verified_at = row[2]
+                self.user_name = row[3]
+                return True
+            return False
+
+    async def save_to_db(self):
+        """Сохраняет информацию о верификации чата в БД."""
+        async with aiosqlite.connect(DATABASE_NAME) as db:
+            cursor = await db.cursor()
+            await cursor.execute(
+                """
+                INSERT OR REPLACE INTO chat_verifications (chat_id, verified_by_user_id, verified_at, user_name)
+                VALUES (?, ?, ?, ?)
+                """,
+                (self.chat_id, self.verified_by_user_id, self.verified_at, self.user_name)
+            )
+            await db.commit()
+            await cursor.close()
+
+    async def delete_from_db(self):
+        """Удаляет информацию о верификации чата из БД."""
+        async with aiosqlite.connect(DATABASE_NAME) as db:
+            cursor = await db.cursor()
+            await cursor.execute(
+                "DELETE FROM chat_verifications WHERE chat_id = ?",
+                (self.chat_id,)
+            )
+            await db.commit()
+            await cursor.close()
+
+    @staticmethod
+    async def is_chat_verified(chat_id: int) -> bool:
+        """
+        Проверяет, верифицирован ли чат.
+        
+        Args:
+            chat_id: ID чата (отрицательное число)
+            
+        Returns:
+            True если чат верифицирован, False иначе
+        """
+        async with aiosqlite.connect(DATABASE_NAME) as db:
+            cursor = await db.cursor()
+            await cursor.execute(
+                "SELECT EXISTS(SELECT 1 FROM chat_verifications WHERE chat_id = ?)",
+                (chat_id,)
+            )
+            result = (await cursor.fetchone())[0]
+            await cursor.close()
+        return bool(result)
+
+
 async def check_db():
     async with aiosqlite.connect(DATABASE_NAME) as db:
         async with db.cursor() as cursor:

@@ -2,13 +2,16 @@
 Обработчики для проверки подписки на спонсорские каналы.
 """
 
+from datetime import datetime, timedelta, timezone
+
 from aiogram import types
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from bot_instance import bot, dp
-from config import MESSAGES, REQUIRED_CHANNELS, logger
-from database import User
+from config import MESSAGES, REQUIRED_CHANNELS, TIMEZONE_OFFSET, logger
+from database import ChatVerification, User
 from services.subscription_service import is_user_subscribed_to_all
+from utils import is_private_chat
 
 
 def get_subscription_keyboard() -> InlineKeyboardMarkup:
@@ -37,15 +40,17 @@ def get_subscription_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-async def send_subscription_request(chat_id: int, message_id: int = None):
+async def send_subscription_request(chat_id: int, message_id: int = None, is_chat: bool = False):
     """
     Отправляет сообщение с просьбой подписаться на каналы.
 
     Args:
         chat_id: ID чата
         message_id: ID сообщения для ответа (опционально)
+        is_chat: True если это групповой чат, False если ЛС
     """
-    message_text = MESSAGES["msg_subscription_required"]
+    # Выбираем правильное сообщение в зависимости от типа чата
+    message_text = MESSAGES["msg_subscription_required_chat"] if is_chat else MESSAGES["msg_subscription_required"]
     keyboard = get_subscription_keyboard()
 
     if message_id:
@@ -68,9 +73,14 @@ async def process_subscription_check(callback_query: types.CallbackQuery):
     """
     Обработчик нажатия на кнопку "Я подписался".
     Проверяет подписку пользователя на все обязательные каналы.
+    Для групповых чатов: сохраняет верификацию чата.
+    Для личных чатов: обновляет subscription_verified пользователя.
     """
     user_id = callback_query.from_user.id
-    logger.info(f"USER{user_id}: запрос проверки подписки")
+    chat_id = callback_query.message.chat.id
+    is_chat = not is_private_chat(callback_query.message)
+    
+    logger.info(f"USER{user_id}: запрос проверки подписки ({'чат' if is_chat else 'ЛС'})")
 
     # Показываем индикатор загрузки
     await callback_query.answer("Проверяю подписку...", show_alert=False)
@@ -83,20 +93,49 @@ async def process_subscription_check(callback_query: types.CallbackQuery):
             # Пользователь подписан на все каналы
             logger.info(f"USER{user_id}: подписка подтверждена")
 
-            # Обновляем статус в БД
-            user = User(user_id)
-            await user.get_from_db()
-            user.subscription_verified = 1
-            await user.update_in_db()
+            if is_chat:
+                # === ГРУППОВОЙ ЧАТ ===
+                # Создаем/обновляем запись о верификации чата
+                current_time = datetime.now(timezone(timedelta(hours=TIMEZONE_OFFSET)))
+                timestamp = current_time.strftime("%Y-%m-%d %H:%M:%S")
+                
+                # Получаем имя пользователя
+                user_name = callback_query.from_user.first_name or callback_query.from_user.username or "Неизвестный"
+                
+                chat_verification = ChatVerification(
+                    chat_id=chat_id,
+                    verified_by_user_id=user_id,
+                    verified_at=timestamp,
+                    user_name=user_name
+                )
+                await chat_verification.save_to_db()
+                
+                # Удаляем сообщение с просьбой подписаться
+                await callback_query.message.delete()
+                
+                # Отправляем подтверждение В ЧАТ
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=MESSAGES["msg_subscription_verified_chat"].format(user_name=user_name)
+                )
+                
+                logger.info(f"CHAT{chat_id}: верифицирован пользователем {user_name} (ID: {user_id})")
+            else:
+                # === ЛИЧНЫЙ ЧАТ ===
+                # Обновляем статус в БД
+                user = User(user_id)
+                await user.get_from_db()
+                user.subscription_verified = 1
+                await user.update_in_db()
 
-            # Удаляем сообщение с просьбой подписаться
-            await callback_query.message.delete()
+                # Удаляем сообщение с просьбой подписаться
+                await callback_query.message.delete()
 
-            # Отправляем подтверждение
-            await bot.send_message(
-                chat_id=user_id,
-                text=MESSAGES["msg_subscription_verified"]
-            )
+                # Отправляем подтверждение в ЛС
+                await bot.send_message(
+                    chat_id=user_id,
+                    text=MESSAGES["msg_subscription_verified"]
+                )
 
         else:
             # Пользователь еще не подписан на все каналы

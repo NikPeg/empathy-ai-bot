@@ -4,6 +4,7 @@
 
 import asyncio
 
+from aiogram import types
 from aiogram.exceptions import TelegramMigrateToChat
 
 from bot_instance import bot
@@ -76,3 +77,81 @@ async def forward_to_debug(message_chat_id: int, message_id: int):
             f"2. ADMIN_CHAT ID корректный\n"
             f"3. У бота есть права на отправку сообщений"
         )
+
+
+def is_private_chat(message: types.Message) -> bool:
+    """
+    Проверяет, является ли сообщение из личного чата.
+    
+    Args:
+        message: Сообщение от пользователя
+        
+    Returns:
+        True если это личный чат, False если группа/супергруппа/канал
+    """
+    return message.chat.type == "private"
+
+
+async def should_respond_in_chat(message: types.Message) -> bool:
+    """
+    Проверяет, должен ли бот ответить на сообщение в групповом чате.
+    Бот отвечает только если:
+    - Сообщение является ответом на сообщение бота
+    - Бот упомянут в тексте через @username
+    - Бот упомянут через entities (mention/text_mention)
+    
+    Args:
+        message: Сообщение от пользователя
+        
+    Returns:
+        True если бот должен ответить, False иначе
+    """
+    # Если это личный чат, всегда отвечаем
+    if is_private_chat(message):
+        return True
+    
+    # Получаем информацию о боте
+    bot_info = await bot.get_me()
+    bot_username = bot_info.username
+    
+    # Проверяем, является ли сообщение ответом на сообщение бота
+    if message.reply_to_message:
+        if message.reply_to_message.from_user and message.reply_to_message.from_user.is_bot:
+            # Дополнительно проверяем, что это именно наш бот
+            if message.reply_to_message.from_user.id == bot_info.id:
+                return True
+    
+    # Проверяем упоминание бота в тексте
+    if message.text and f"@{bot_username}" in message.text:
+        return True
+    
+    # Проверяем упоминание через entities
+    if message.entities:
+        for entity in message.entities:
+            if entity.type == "mention":
+                # Извлекаем упомянутое имя
+                mentioned = message.text[entity.offset:entity.offset + entity.length]
+                if mentioned == f"@{bot_username}":
+                    return True
+            elif entity.type == "text_mention":
+                # Прямое упоминание пользователя (может быть и ботом)
+                if entity.user and entity.user.id == bot_info.id:
+                    return True
+    
+    # Проверяем упоминание в caption (для фото/видео)
+    if message.caption:
+        if f"@{bot_username}" in message.caption:
+            return True
+        
+        # Проверяем entities в caption
+        if message.caption_entities:
+            for entity in message.caption_entities:
+                if entity.type == "mention":
+                    mentioned = message.caption[entity.offset:entity.offset + entity.length]
+                    if mentioned == f"@{bot_username}":
+                        return True
+                elif entity.type == "text_mention":
+                    if entity.user and entity.user.id == bot_info.id:
+                        return True
+    
+    return False
