@@ -153,8 +153,6 @@ jobs:
                 docker update --restart=no "$CONTAINER_ID" 2>/dev/null || true
                 echo "  Останавливаем контейнер $CONTAINER_ID..."
                 docker stop "$CONTAINER_ID" 2>/dev/null || true
-                echo "  Удаляем контейнер $CONTAINER_ID..."
-                docker rm -f "$CONTAINER_ID" 2>/dev/null || true
               done
               sleep 2
             fi
