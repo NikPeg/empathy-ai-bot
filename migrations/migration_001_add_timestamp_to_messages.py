@@ -49,7 +49,7 @@ async def migrate(db: aiosqlite.Connection):
                 updated_prompt = json.dumps(prompt)
                 await db.execute(
                     "UPDATE conversations SET prompt = ? WHERE id = ?",
-                    (updated_prompt, user_id)
+                    (updated_prompt, user_id),
                 )
                 updated_count += 1
 
@@ -59,5 +59,6 @@ async def migrate(db: aiosqlite.Connection):
 
     await db.commit()
 
-    print(f"  ✅ Обновлено {updated_count} пользователей, {message_count} сообщений получили timestamp=null")
-
+    print(
+        f"  ✅ Обновлено {updated_count} пользователей, {message_count} сообщений получили timestamp=null"
+    )

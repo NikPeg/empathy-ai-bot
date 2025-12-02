@@ -226,4 +226,3 @@ async def test_messages_preserved_on_interruption():
 if __name__ == "__main__":
     # Для быстрого запуска тестов
     pytest.main([__file__, "-v"])
-

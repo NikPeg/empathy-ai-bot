@@ -24,7 +24,7 @@ class SubscriptionMiddleware(BaseMiddleware):
         self,
         handler: Callable[[Message, dict[str, Any]], Awaitable[Any]],
         event: Message,
-        data: dict[str, Any]
+        data: dict[str, Any],
     ) -> Any:
         """
         Проверяет подписку перед обработкой сообщения.
@@ -54,7 +54,12 @@ class SubscriptionMiddleware(BaseMiddleware):
             return await handler(event, data)
 
         # Пропускаем проверку для системных сообщений (добавление/удаление участников и т.д.)
-        if event.new_chat_members or event.left_chat_member or event.new_chat_title or event.new_chat_photo:
+        if (
+            event.new_chat_members
+            or event.left_chat_member
+            or event.new_chat_title
+            or event.new_chat_photo
+        ):
             return await handler(event, data)
 
         # Различаем личные чаты и групповые
@@ -74,10 +79,14 @@ class SubscriptionMiddleware(BaseMiddleware):
             # Проверяем статус подписки
             if conversation.subscription_verified == 0:
                 # Пользователь не подписан
-                logger.info(f"USER{user_id}: попытка использования бота без подписки (ЛС)")
+                logger.info(
+                    f"USER{user_id}: попытка использования бота без подписки (ЛС)"
+                )
 
                 # Отправляем сообщение с просьбой подписаться
-                await send_subscription_request(event.chat.id, event.message_id, is_chat=False)
+                await send_subscription_request(
+                    event.chat.id, event.message_id, is_chat=False
+                )
 
                 # Прерываем обработку
                 return None
@@ -102,4 +111,3 @@ class SubscriptionMiddleware(BaseMiddleware):
 
         # Чат верифицирован, продолжаем обработку
         return await handler(event, data)
-

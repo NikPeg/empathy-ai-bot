@@ -42,6 +42,7 @@ class Conversation:
         reminder_times: Список времен для напоминаний (формат HH:MM)
         subscription_verified: Статус верификации подписки
     """
+
     def __init__(
         self,
         id,
@@ -68,8 +69,12 @@ class Conversation:
         self.sub_id = sub_id
         self.sub_period = sub_period
         self.is_admin = is_admin
-        self.active_messages_count = active_messages_count  # NULL = все, 0 = забыть, N = последние N
-        self.reminder_times = reminder_times  # Список времен напоминаний в формате HH:MM (МСК)
+        self.active_messages_count = (
+            active_messages_count  # NULL = все, 0 = забыть, N = последние N
+        )
+        self.reminder_times = (
+            reminder_times  # Список времен напоминаний в формате HH:MM (МСК)
+        )
         self.subscription_verified = subscription_verified  # NULL = не проверялось, 0 = не подписан, 1 = подписан
 
     def __repr__(self):
@@ -91,7 +96,9 @@ class Conversation:
                 self.sub_period = row[6]
                 self.is_admin = row[7]
                 self.active_messages_count = row[8] if len(row) > 8 else None
-                self.reminder_times = json.loads(row[9]) if len(row) > 9 and row[9] else ["19:15"]
+                self.reminder_times = (
+                    json.loads(row[9]) if len(row) > 9 and row[9] else ["19:15"]
+                )
                 self.subscription_verified = row[10] if len(row) > 10 else None
 
     async def __call__(self, user_id):
@@ -111,7 +118,9 @@ class Conversation:
                     sub_period=row[6],
                     is_admin=row[7],
                     active_messages_count=row[8] if len(row) > 8 else None,
-                    reminder_times=json.loads(row[9]) if len(row) > 9 and row[9] else ["19:15"],
+                    reminder_times=json.loads(row[9])
+                    if len(row) > 9 and row[9]
+                    else ["19:15"],
                     subscription_verified=row[10] if len(row) > 10 else None,
                 )
             return None
@@ -164,13 +173,12 @@ class Conversation:
                 INSERT INTO messages (user_id, role, content, timestamp)
                 VALUES (?, ?, ?, ?)
                 """,
-                (self.id, role, new_request, timestamp)
+                (self.id, role, new_request, timestamp),
             )
 
             # Проверяем количество сообщений и удаляем старые, если превышен лимит
             async with db.execute(
-                "SELECT COUNT(*) FROM messages WHERE user_id = ?",
-                (self.id,)
+                "SELECT COUNT(*) FROM messages WHERE user_id = ?", (self.id,)
             ) as cursor:
                 count = (await cursor.fetchone())[0]
 
@@ -187,7 +195,7 @@ class Conversation:
                         LIMIT ?
                     )
                     """,
-                    (self.id, self.id, MAX_STORAGE)
+                    (self.id, self.id, MAX_STORAGE),
                 )
 
             await db.commit()
@@ -220,17 +228,13 @@ class Conversation:
                 ORDER BY id DESC
                 LIMIT ?
                 """,
-                (self.id, limit)
+                (self.id, limit),
             ) as cursor:
                 rows = await cursor.fetchall()
 
             # Переворачиваем список (самые старые сначала)
             return [
-                {
-                    "role": row[0],
-                    "content": row[1],
-                    "timestamp": row[2]
-                }
+                {"role": row[0], "content": row[1], "timestamp": row[2]}
                 for row in reversed(rows)
             ]
 
@@ -288,7 +292,9 @@ class ChatVerification:
         user_name: str = None,
     ):
         self.chat_id = chat_id  # Отрицательный ID чата
-        self.verified_by_user_id = verified_by_user_id  # ID пользователя, который подтвердил
+        self.verified_by_user_id = (
+            verified_by_user_id  # ID пользователя, который подтвердил
+        )
         self.verified_at = verified_at  # Дата верификации
         self.user_name = user_name  # Имя верификатора
 
@@ -301,7 +307,7 @@ class ChatVerification:
             cursor = await db.cursor()
             await cursor.execute(
                 "SELECT chat_id, verified_by_user_id, verified_at, user_name FROM chat_verifications WHERE chat_id = ?",
-                (self.chat_id,)
+                (self.chat_id,),
             )
             row = await cursor.fetchone()
             if row:
@@ -321,7 +327,12 @@ class ChatVerification:
                 INSERT OR REPLACE INTO chat_verifications (chat_id, verified_by_user_id, verified_at, user_name)
                 VALUES (?, ?, ?, ?)
                 """,
-                (self.chat_id, self.verified_by_user_id, self.verified_at, self.user_name)
+                (
+                    self.chat_id,
+                    self.verified_by_user_id,
+                    self.verified_at,
+                    self.user_name,
+                ),
             )
             await db.commit()
             await cursor.close()
@@ -331,8 +342,7 @@ class ChatVerification:
         async with aiosqlite.connect(DATABASE_NAME) as db:
             cursor = await db.cursor()
             await cursor.execute(
-                "DELETE FROM chat_verifications WHERE chat_id = ?",
-                (self.chat_id,)
+                "DELETE FROM chat_verifications WHERE chat_id = ?", (self.chat_id,)
             )
             await db.commit()
             await cursor.close()
@@ -352,7 +362,7 @@ class ChatVerification:
             cursor = await db.cursor()
             await cursor.execute(
                 "SELECT EXISTS(SELECT 1 FROM chat_verifications WHERE chat_id = ?)",
-                (chat_id,)
+                (chat_id,),
             )
             result = (await cursor.fetchone())[0]
             await cursor.close()
@@ -373,23 +383,16 @@ async def delete_chat_data(chat_id: int):
 
         # Удаляем верификацию чата
         await cursor.execute(
-            "DELETE FROM chat_verifications WHERE chat_id = ?",
-            (chat_id,)
+            "DELETE FROM chat_verifications WHERE chat_id = ?", (chat_id,)
         )
         logger.debug(f"CHAT{chat_id}: верификация удалена из БД")
 
         # Удаляем все сообщения чата
-        await cursor.execute(
-            "DELETE FROM messages WHERE user_id = ?",
-            (chat_id,)
-        )
+        await cursor.execute("DELETE FROM messages WHERE user_id = ?", (chat_id,))
         logger.debug(f"CHAT{chat_id}: сообщения удалены из БД")
 
         # Удаляем запись о чате из таблицы conversations (если есть)
-        await cursor.execute(
-            "DELETE FROM conversations WHERE id = ?",
-            (chat_id,)
-        )
+        await cursor.execute("DELETE FROM conversations WHERE id = ?", (chat_id,))
         logger.debug(f"CHAT{chat_id}: запись беседы удалена из БД")
 
         await db.commit()
@@ -459,7 +462,9 @@ async def get_past_dates():
         current_hour = now_msk.hour
         current_minute = now_msk.minute
 
-        logger.debug(f"Текущее время МСК: {now_msk.strftime('%Y-%m-%d %H:%M:%S')} ({current_hour:02d}:{current_minute:02d})")
+        logger.debug(
+            f"Текущее время МСК: {now_msk.strftime('%Y-%m-%d %H:%M:%S')} ({current_hour:02d}:{current_minute:02d})"
+        )
 
         query = "SELECT id, reminder_times, remind_of_yourself FROM conversations"
 
@@ -480,11 +485,17 @@ async def get_past_dates():
 
             # Парсим список времен напоминаний
             try:
-                reminder_times = json.loads(reminder_times_json) if reminder_times_json else ["19:15"]
+                reminder_times = (
+                    json.loads(reminder_times_json)
+                    if reminder_times_json
+                    else ["19:15"]
+                )
             except json.JSONDecodeError:
                 reminder_times = ["19:15"]
 
-            logger.debug(f"USER{user_id}: времена напоминаний {reminder_times}, последнее: {remind_of_yourself}")
+            logger.debug(
+                f"USER{user_id}: времена напоминаний {reminder_times}, последнее: {remind_of_yourself}"
+            )
 
             # Проверяем, наступило ли одно из времен напоминаний
             for reminder_time in reminder_times:
@@ -493,11 +504,15 @@ async def get_past_dates():
 
                     # Проверяем, что текущее время находится в пределах 15 минут от времени напоминания
                     # (так как проверка происходит каждые 15 минут)
-                    time_diff = (current_hour * 60 + current_minute) - (reminder_hour * 60 + reminder_minute)
+                    time_diff = (current_hour * 60 + current_minute) - (
+                        reminder_hour * 60 + reminder_minute
+                    )
 
                     # Если время напоминания наступило (в пределах последних 15 минут)
                     if 0 <= time_diff < 15:
-                        logger.debug(f"USER{user_id}: время {reminder_time} подходит (разница: {time_diff} мин)")
+                        logger.debug(
+                            f"USER{user_id}: время {reminder_time} подходит (разница: {time_diff} мин)"
+                        )
 
                         # Проверяем, можно ли отправить напоминание
                         can_send = False
@@ -509,27 +524,41 @@ async def get_past_dates():
                         else:
                             # Пытаемся распарсить timestamp
                             try:
-                                last_reminder = datetime.strptime(remind_of_yourself, "%Y-%m-%d %H:%M:%S")
-                                time_since_last = (now_msk.replace(tzinfo=None) - last_reminder).total_seconds()
+                                last_reminder = datetime.strptime(
+                                    remind_of_yourself, "%Y-%m-%d %H:%M:%S"
+                                )
+                                time_since_last = (
+                                    now_msk.replace(tzinfo=None) - last_reminder
+                                ).total_seconds()
 
                                 # Минимум 1 час между напоминаниями (чтобы избежать дублей в одном временном окне)
                                 if time_since_last >= 3600:
-                                    logger.debug(f"USER{user_id}: прошло {int(time_since_last/60)} мин с последнего")
+                                    logger.debug(
+                                        f"USER{user_id}: прошло {int(time_since_last / 60)} мин с последнего"
+                                    )
                                     can_send = True
                                 else:
-                                    logger.debug(f"USER{user_id}: недавно отправлялось ({int(time_since_last/60)} мин назад)")
+                                    logger.debug(
+                                        f"USER{user_id}: недавно отправлялось ({int(time_since_last / 60)} мин назад)"
+                                    )
                             except (ValueError, TypeError) as e:
                                 # Некорректный формат - считаем что можно отправить
-                                logger.warning(f"USER{user_id}: некорректный формат времени '{remind_of_yourself}': {e}")
+                                logger.warning(
+                                    f"USER{user_id}: некорректный формат времени '{remind_of_yourself}': {e}"
+                                )
                                 can_send = True
 
                         if can_send:
-                            logger.info(f"USER{user_id}: добавлен в очередь на отправку (время {reminder_time})")
+                            logger.info(
+                                f"USER{user_id}: добавлен в очередь на отправку (время {reminder_time})"
+                            )
                             past_user_ids.append(user_id)
                             break  # Нашли подходящее время, выходим из цикла
 
                 except (ValueError, AttributeError) as e:
-                    logger.debug(f"USER{user_id}: ошибка при обработке времени {reminder_time}: {e}")
+                    logger.debug(
+                        f"USER{user_id}: ошибка при обработке времени {reminder_time}: {e}"
+                    )
                     continue
 
     return past_user_ids

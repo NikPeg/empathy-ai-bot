@@ -30,7 +30,9 @@ async def handle_text_message(message: types.Message):
 
     # В групповых чатах отвечаем только на упоминания
     if not await should_respond_in_chat(message):
-        logger.debug(f"CHAT{message.chat.id}: сообщение без упоминания бота, игнорируем")
+        logger.debug(
+            f"CHAT{message.chat.id}: сообщение без упоминания бота, игнорируем"
+        )
         return
 
     logger.info(f"USER{message.chat.id}TOLLM:{message.text}")
@@ -72,10 +74,14 @@ async def handle_text_message(message: types.Message):
             messages = await message_buffer.peek_buffered_messages(message.chat.id)
             combined_text = "\n".join(messages)
 
-            logger.info(f"USER{message.chat.id}TOLLM (объединено {len(messages)} сообщений): {combined_text}")
+            logger.info(
+                f"USER{message.chat.id}TOLLM (объединено {len(messages)} сообщений): {combined_text}"
+            )
 
             # Создаем задачу для получения ответа от LLM
-            llm_task = asyncio.create_task(get_llm_response(message.chat.id, combined_text))
+            llm_task = asyncio.create_task(
+                get_llm_response(message.chat.id, combined_text)
+            )
             await message_buffer.set_current_task(message.chat.id, llm_task)
 
             # Периодически проверяем, не пришли ли новые сообщения
@@ -84,7 +90,9 @@ async def handle_text_message(message: types.Message):
                 await asyncio.sleep(0.1)
 
                 # Сравниваем текущий буфер с тем, что мы начали обрабатывать
-                current_buffer = await message_buffer.peek_buffered_messages(message.chat.id)
+                current_buffer = await message_buffer.peek_buffered_messages(
+                    message.chat.id
+                )
                 if len(current_buffer) > len(messages):
                     # Пришли новые сообщения! НЕ ждем текущий ответ
                     logger.info(
@@ -99,7 +107,9 @@ async def handle_text_message(message: types.Message):
             # Если задача завершилась БЕЗ прерывания
             if llm_task.done() and not was_interrupted:
                 # Проверяем еще раз буфер (могло прийти сообщение в последний момент)
-                current_buffer = await message_buffer.peek_buffered_messages(message.chat.id)
+                current_buffer = await message_buffer.peek_buffered_messages(
+                    message.chat.id
+                )
                 if len(current_buffer) == len(messages):
                     # Все хорошо, используем полученный ответ
                     llm_response, user = await llm_task
@@ -127,11 +137,15 @@ async def handle_text_message(message: types.Message):
                             generated_message = await message.answer(
                                 chunk, parse_mode=ParseMode.MARKDOWN_V2
                             )
-                            await forward_to_debug(message.chat.id, generated_message.message_id)
+                            await forward_to_debug(
+                                message.chat.id, generated_message.message_id
+                            )
                         except TelegramForbiddenError:
                             conversation.remind_of_yourself = 0
                             await conversation.update_in_db()
-                            logger.warning(f"USER{message.chat.id} заблокировал чатбота")
+                            logger.warning(
+                                f"USER{message.chat.id} заблокировал чатбота"
+                            )
                             return
                         except Exception as e:
                             # Пробуем отправить без форматирования
@@ -331,8 +345,7 @@ async def handle_video_message(message: types.Message):
 
         if converted_response is None:
             await message.answer(
-                "Прости, твоё видео вызвало у меня ошибку(( "
-                "Пожалуйста попробуй снова"
+                "Прости, твоё видео вызвало у меня ошибку(( Пожалуйста попробуй снова"
             )
             return
 

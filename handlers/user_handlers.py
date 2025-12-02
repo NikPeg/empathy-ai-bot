@@ -39,8 +39,7 @@ async def bot_added_to_chat(message: types.Message):
 
         # Отправляем приветственное сообщение
         welcome_text = MESSAGES["msg_bot_added_to_chat"].format(
-            chat_title=chat_title,
-            bot_username=bot_info.username
+            chat_title=chat_title, bot_username=bot_info.username
         )
 
         await message.answer(welcome_text)
@@ -68,14 +67,18 @@ async def bot_removed_from_chat(message: types.Message):
             await delete_chat_data(chat_id)
             logger.info(f"CHAT{chat_id}: все данные успешно удалены")
         except Exception as e:
-            logger.error(f"CHAT{chat_id}: ошибка при удалении данных - {e}", exc_info=True)
+            logger.error(
+                f"CHAT{chat_id}: ошибка при удалении данных - {e}", exc_info=True
+            )
 
 
 @dp.message(UserNotInDB())
 async def registration(message: types.Message):
     """Регистрация нового пользователя."""
     chat_id = message.chat.id
-    logger.info(f"{'CHAT' if chat_id < 0 else 'USER'}{chat_id}: регистрация нового пользователя/чата")
+    logger.info(
+        f"{'CHAT' if chat_id < 0 else 'USER'}{chat_id}: регистрация нового пользователя/чата"
+    )
 
     args = message.text.split() if message.text else []
 
@@ -101,7 +104,9 @@ async def registration(message: types.Message):
 
     # Если есть обязательные каналы, показываем сообщение о подписке
     if REQUIRED_CHANNELS and message.chat.id != ADMIN_CHAT:
-        logger.info(f"{'CHAT' if chat_id < 0 else 'USER'}{chat_id}: регистрация отправляет запрос подписки")
+        logger.info(
+            f"{'CHAT' if chat_id < 0 else 'USER'}{chat_id}: регистрация отправляет запрос подписки"
+        )
         await send_subscription_request(message.chat.id)
 
     # Не пересылаем сообщения из админ-чата в админ-чат
@@ -158,17 +163,26 @@ async def cmd_help(message: types.Message):
             sent_msg = await message.answer(
                 help_message, reply_markup=ReplyKeyboardRemove(), parse_mode="Markdown"
             )
-        logger.info(f"Сообщение /help успешно отправлено пользователю {message.chat.id}")
+        logger.info(
+            f"Сообщение /help успешно отправлено пользователю {message.chat.id}"
+        )
     except Exception as e:
         # Если не получилось, пробуем без форматирования
-        logger.error(f"Ошибка при отправке /help для USER{message.chat.id}: {e}", exc_info=True)
+        logger.error(
+            f"Ошибка при отправке /help для USER{message.chat.id}: {e}", exc_info=True
+        )
         try:
             sent_msg = await message.answer(
                 help_message, reply_markup=ReplyKeyboardRemove()
             )
-            logger.info(f"Сообщение /help отправлено без форматирования пользователю {message.chat.id}")
+            logger.info(
+                f"Сообщение /help отправлено без форматирования пользователю {message.chat.id}"
+            )
         except Exception as e2:
-            logger.error(f"Критическая ошибка при отправке /help для USER{message.chat.id}: {e2}", exc_info=True)
+            logger.error(
+                f"Критическая ошибка при отправке /help для USER{message.chat.id}: {e2}",
+                exc_info=True,
+            )
             return
 
     # Не пересылаем сообщения из админ-чата в админ-чат

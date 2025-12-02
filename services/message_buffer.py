@@ -154,4 +154,3 @@ class MessageBuffer:
 
 # Глобальный экземпляр буфера
 message_buffer = MessageBuffer()
-

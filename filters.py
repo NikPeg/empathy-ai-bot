@@ -44,7 +44,7 @@ class UserIsAdmin(Filter):
         logger.log(
             FULL_LEVEL,
             f"UserIsAdmin проверка для {message.chat.id}: {is_admin} "
-            f"(ADMIN_CHAT={ADMIN_CHAT})"
+            f"(ADMIN_CHAT={ADMIN_CHAT})",
         )
         return is_admin
 

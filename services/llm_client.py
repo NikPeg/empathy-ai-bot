@@ -47,12 +47,16 @@ async def send_request_to_openrouter(
                 response_json = json.loads(response_text)
 
                 # Логируем ответ для отладки
-                logger.debug(f"LLM API response: {json.dumps(response_json, ensure_ascii=False)[:500]}")
+                logger.debug(
+                    f"LLM API response: {json.dumps(response_json, ensure_ascii=False)[:500]}"
+                )
 
                 if "choices" in response_json and len(response_json["choices"]) > 0:
                     content = response_json["choices"][0]["message"]["content"]
                     if content is None or content.strip() == "":
-                        logger.warning(f"LLM returned empty content. Full response: {response_json}")
+                        logger.warning(
+                            f"LLM returned empty content. Full response: {response_json}"
+                        )
                     return content
 
                 logger.error(f"No choices in LLM response. Response: {response_json}")
@@ -124,7 +128,9 @@ async def send_image_to_vision_model(
                     },
                     {
                         "type": "image_url",
-                        "image_url": {"url": f"data:{image_mime_type};base64,{base64_image}"},
+                        "image_url": {
+                            "url": f"data:{image_mime_type};base64,{base64_image}"
+                        },
                     },
                 ],
             }
@@ -155,10 +161,14 @@ async def send_image_to_vision_model(
                 if "choices" in response_json and len(response_json["choices"]) > 0:
                     content = response_json["choices"][0]["message"]["content"]
                     if content is None or content.strip() == "":
-                        logger.warning(f"Vision model returned empty content. Full response: {response_json}")
+                        logger.warning(
+                            f"Vision model returned empty content. Full response: {response_json}"
+                        )
                     return content
 
-                logger.error(f"No choices in vision model response. Response: {response_json}")
+                logger.error(
+                    f"No choices in vision model response. Response: {response_json}"
+                )
                 return None
 
         except aiohttp.ClientResponseError as e:

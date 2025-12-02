@@ -50,10 +50,7 @@ async def mark_migration_applied(db: aiosqlite.Connection, migration_name: str):
         db: Соединение с базой данных
         migration_name: Имя миграции
     """
-    await db.execute(
-        "INSERT INTO migrations (name) VALUES (?)",
-        (migration_name,)
-    )
+    await db.execute("INSERT INTO migrations (name) VALUES (?)", (migration_name,))
     await db.commit()
 
 
@@ -67,10 +64,13 @@ async def run_migrations():
     migrations_dir = Path(__file__).parent
 
     # Получаем список файлов миграций
-    migration_files = sorted([
-        f for f in migrations_dir.glob("*.py")
-        if f.name.startswith("migration_") and f.name != "migration_manager.py"
-    ])
+    migration_files = sorted(
+        [
+            f
+            for f in migrations_dir.glob("*.py")
+            if f.name.startswith("migration_") and f.name != "migration_manager.py"
+        ]
+    )
 
     if not migration_files:
         print("✅ Миграций не найдено")
@@ -93,7 +93,10 @@ async def run_migrations():
             try:
                 # Динамически импортируем модуль миграции
                 import importlib.util
-                spec = importlib.util.spec_from_file_location(migration_name, migration_file)
+
+                spec = importlib.util.spec_from_file_location(
+                    migration_name, migration_file
+                )
                 migration_module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(migration_module)
 
@@ -124,4 +127,3 @@ async def run_migrations():
 
 if __name__ == "__main__":
     asyncio.run(run_migrations())
-

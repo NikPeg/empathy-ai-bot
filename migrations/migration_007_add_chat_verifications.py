@@ -50,4 +50,3 @@ async def downgrade():
         await db.commit()
 
         return "Удалена таблица chat_verifications"
-

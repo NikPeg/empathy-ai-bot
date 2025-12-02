@@ -115,10 +115,12 @@ async def should_respond_in_chat(message: types.Message) -> bool:
     bot_username = bot_info.username
 
     # Проверяем, является ли сообщение ответом на сообщение бота
-    if (message.reply_to_message and
-        message.reply_to_message.from_user and
-        message.reply_to_message.from_user.is_bot and
-        message.reply_to_message.from_user.id == bot_info.id):
+    if (
+        message.reply_to_message
+        and message.reply_to_message.from_user
+        and message.reply_to_message.from_user.is_bot
+        and message.reply_to_message.from_user.id == bot_info.id
+    ):
         return True
 
     # Проверяем упоминание бота в тексте
@@ -130,7 +132,7 @@ async def should_respond_in_chat(message: types.Message) -> bool:
         for entity in message.entities:
             if entity.type == "mention":
                 # Извлекаем упомянутое имя
-                mentioned = message.text[entity.offset:entity.offset + entity.length]
+                mentioned = message.text[entity.offset : entity.offset + entity.length]
                 if mentioned == f"@{bot_username}":
                     return True
             elif entity.type == "text_mention":
@@ -147,7 +149,9 @@ async def should_respond_in_chat(message: types.Message) -> bool:
         if message.caption_entities:
             for entity in message.caption_entities:
                 if entity.type == "mention":
-                    mentioned = message.caption[entity.offset:entity.offset + entity.length]
+                    mentioned = message.caption[
+                        entity.offset : entity.offset + entity.length
+                    ]
                     if mentioned == f"@{bot_username}":
                         return True
                 elif entity.type == "text_mention":

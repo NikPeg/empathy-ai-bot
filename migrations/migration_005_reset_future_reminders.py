@@ -35,7 +35,7 @@ async def upgrade():
             WHERE remind_of_yourself != '0'
             AND remind_of_yourself > ?
             """,
-            (current_time_str,)
+            (current_time_str,),
         )
 
         await db.commit()
@@ -61,4 +61,3 @@ async def downgrade():
     """Откатывает миграцию."""
     # Откат невозможен, так как мы не сохраняли старые значения
     return "Откат невозможен: старые значения не сохранялись"
-

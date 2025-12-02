@@ -45,4 +45,3 @@ async def migrate(db: aiosqlite.Connection):
         print("  ⏭️  Поле reminder_times уже существует")
 
     print("  ✅ Миграция завершена успешно!")
-

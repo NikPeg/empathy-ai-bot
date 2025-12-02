@@ -41,7 +41,9 @@ def log_prompt(chat_id: int, prompt: list[dict], prompt_type: str = "MESSAGE"):
     )
 
 
-async def get_llm_response(chat_id: int, message_text: str) -> tuple[str | None, Conversation]:
+async def get_llm_response(
+    chat_id: int, message_text: str
+) -> tuple[str | None, Conversation]:
     """
     Получает ответ от LLM БЕЗ сохранения в контекст.
 
@@ -85,16 +87,10 @@ async def get_llm_response(chat_id: int, message_text: str) -> tuple[str | None,
 
     # Добавляем сообщения из истории (убираем timestamp, он не нужен для LLM API)
     for msg in context_messages:
-        prompt_for_request.append({
-            "role": msg["role"],
-            "content": msg["content"]
-        })
+        prompt_for_request.append({"role": msg["role"], "content": msg["content"]})
 
     # Добавляем текущее сообщение пользователя в промпт
-    prompt_for_request.append({
-        "role": "user",
-        "content": message_text
-    })
+    prompt_for_request.append({"role": "user", "content": message_text})
 
     # Логируем промпт перед отправкой
     log_prompt(chat_id, prompt_for_request, "MESSAGE")
@@ -116,10 +112,7 @@ async def get_llm_response(chat_id: int, message_text: str) -> tuple[str | None,
 
 
 async def save_to_context_and_format(
-    chat_id: int,
-    conversation: Conversation,
-    user_message: str,
-    llm_response: str
+    chat_id: int, conversation: Conversation, user_message: str, llm_response: str
 ) -> str:
     """
     Сохраняет диалог в контекст и форматирует ответ для Telegram.
@@ -150,7 +143,9 @@ async def save_to_context_and_format(
     # +2 потому что добавили пару: user message + assistant message
     if conversation.active_messages_count is not None:
         conversation.active_messages_count += 2
-        logger.debug(f"USER{chat_id} active_messages_count увеличен до {conversation.active_messages_count}")
+        logger.debug(
+            f"USER{chat_id} active_messages_count увеличен до {conversation.active_messages_count}"
+        )
 
     # remind_of_yourself обновляется только при отправке напоминания (в reminder_service.py)
     await conversation.update_in_db()
@@ -247,7 +242,9 @@ async def process_user_video(
             temp_video.write(video_bytes)
             temp_video_path = temp_video.name
 
-        logger.debug(f"VIDEO{chat_id} - видео сохранено во временный файл: {temp_video_path}")
+        logger.debug(
+            f"VIDEO{chat_id} - видео сохранено во временный файл: {temp_video_path}"
+        )
 
         # Открываем видео через OpenCV
         cap = cv2.VideoCapture(temp_video_path)
@@ -318,16 +315,27 @@ async def process_user_video(
                 )
 
                 if description and description.strip():
-                    frame_descriptions.append(f"{frame_labels[i].capitalize()}: {description}")
-                    logger.debug(f"VISION{chat_id} - описание кадра {i+1}: {description[:100]}...")
+                    frame_descriptions.append(
+                        f"{frame_labels[i].capitalize()}: {description}"
+                    )
+                    logger.debug(
+                        f"VISION{chat_id} - описание кадра {i + 1}: {description[:100]}..."
+                    )
                 else:
-                    logger.warning(f"VISION{chat_id} - пустое описание для кадра {i+1}")
+                    logger.warning(
+                        f"VISION{chat_id} - пустое описание для кадра {i + 1}"
+                    )
 
             except Exception as e:
-                logger.error(f"VISION{chat_id} - ошибка обработки кадра {i+1}: {e}", exc_info=True)
+                logger.error(
+                    f"VISION{chat_id} - ошибка обработки кадра {i + 1}: {e}",
+                    exc_info=True,
+                )
 
         if len(frame_descriptions) == 0:
-            logger.error(f"VISION{chat_id} - не удалось получить описание ни одного кадра")
+            logger.error(
+                f"VISION{chat_id} - не удалось получить описание ни одного кадра"
+            )
             return None
 
         # Формируем общее описание видео
@@ -359,10 +367,7 @@ async def process_user_video(
         ]
 
         for msg in context_messages:
-            prompt_for_request.append({
-                "role": msg["role"],
-                "content": msg["content"]
-            })
+            prompt_for_request.append({"role": msg["role"], "content": msg["content"]})
 
         # Формируем запрос к MODEL для анализа процесса на видео
         video_analysis_prompt = (
@@ -373,10 +378,7 @@ async def process_user_video(
             f"Что делает человек/объект, как развивается действие от начала к концу.]"
         )
 
-        prompt_for_request.append({
-            "role": "user",
-            "content": video_analysis_prompt
-        })
+        prompt_for_request.append({"role": "user", "content": video_analysis_prompt})
 
         log_prompt(chat_id, prompt_for_request, "VIDEO")
 
@@ -384,7 +386,10 @@ async def process_user_video(
         try:
             llm_msg = await send_request_to_openrouter(prompt_for_request)
         except Exception as e:
-            logger.error(f"LLM{chat_id} - Критическая ошибка при обработке видео: {e}", exc_info=True)
+            logger.error(
+                f"LLM{chat_id} - Критическая ошибка при обработке видео: {e}",
+                exc_info=True,
+            )
             return None
 
         if llm_msg is None or llm_msg.strip() == "":
@@ -407,14 +412,18 @@ async def process_user_video(
         # Увеличиваем счетчик активных сообщений
         if conversation.active_messages_count is not None:
             conversation.active_messages_count += 2
-            logger.debug(f"USER{chat_id} active_messages_count увеличен до {conversation.active_messages_count}")
+            logger.debug(
+                f"USER{chat_id} active_messages_count увеличен до {conversation.active_messages_count}"
+            )
 
         await conversation.update_in_db()
 
         return converted
 
     except Exception as e:
-        logger.error(f"VIDEO{chat_id} - критическая ошибка обработки видео: {e}", exc_info=True)
+        logger.error(
+            f"VIDEO{chat_id} - критическая ошибка обработки видео: {e}", exc_info=True
+        )
         return None
 
     finally:
@@ -422,6 +431,10 @@ async def process_user_video(
         if temp_video_path and os.path.exists(temp_video_path):
             try:
                 os.unlink(temp_video_path)
-                logger.debug(f"VIDEO{chat_id} - временный файл удален: {temp_video_path}")
+                logger.debug(
+                    f"VIDEO{chat_id} - временный файл удален: {temp_video_path}"
+                )
             except Exception as e:
-                logger.warning(f"VIDEO{chat_id} - не удалось удалить временный файл: {e}")
+                logger.warning(
+                    f"VIDEO{chat_id} - не удалось удалить временный файл: {e}"
+                )

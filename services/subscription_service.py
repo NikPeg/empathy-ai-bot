@@ -11,7 +11,9 @@ from config import REQUIRED_CHANNELS, logger
 from database import ChatVerification, Conversation
 
 
-async def check_user_subscription(bot: Bot, user_id: int, channels: list[str] = None) -> dict[str, bool]:
+async def check_user_subscription(
+    bot: Bot, user_id: int, channels: list[str] = None
+) -> dict[str, bool]:
     """
     Проверяет подписку пользователя на список каналов.
 
@@ -43,30 +45,41 @@ async def check_user_subscription(bot: Bot, user_id: int, channels: list[str] = 
             is_subscribed = member.status in ["creator", "administrator", "member"]
             results[channel] = is_subscribed
 
-            logger.debug(f"USER{user_id}: канал {channel}, статус {member.status}, подписан: {is_subscribed}")
+            logger.debug(
+                f"USER{user_id}: канал {channel}, статус {member.status}, подписан: {is_subscribed}"
+            )
 
         except TelegramBadRequest as e:
             # Специальная обработка для PARTICIPANT_ID_INVALID
             # Это нормальная ситуация для пользователей, которые никогда не были в канале
             if "PARTICIPANT_ID_INVALID" in str(e):
-                logger.debug(f"USER{user_id}: не является участником канала {channel} (никогда не был подписан)")
+                logger.debug(
+                    f"USER{user_id}: не является участником канала {channel} (никогда не был подписан)"
+                )
                 results[channel] = False
             else:
                 # Другие ошибки - канал не найден или бот не является админом
-                logger.warning(f"Ошибка при проверке канала {channel} для USER{user_id}: {e}")
+                logger.warning(
+                    f"Ошибка при проверке канала {channel} для USER{user_id}: {e}"
+                )
                 results[channel] = False
         except TelegramForbiddenError as e:
             # Бот заблокирован пользователем или не имеет доступа
             logger.warning(f"Нет доступа к каналу {channel} для USER{user_id}: {e}")
             results[channel] = False
         except Exception as e:
-            logger.error(f"Неожиданная ошибка при проверке канала {channel} для USER{user_id}: {e}", exc_info=True)
+            logger.error(
+                f"Неожиданная ошибка при проверке канала {channel} для USER{user_id}: {e}",
+                exc_info=True,
+            )
             results[channel] = False
 
     return results
 
 
-async def is_user_subscribed_to_all(bot: Bot, user_id: int, channels: list[str] = None) -> bool:
+async def is_user_subscribed_to_all(
+    bot: Bot, user_id: int, channels: list[str] = None
+) -> bool:
     """
     Проверяет, подписан ли пользователь на ВСЕ обязательные каналы.
 
@@ -88,7 +101,9 @@ async def is_user_subscribed_to_all(bot: Bot, user_id: int, channels: list[str] 
     results = await check_user_subscription(bot, user_id, channels)
     is_subscribed = all(results.values())
 
-    logger.info(f"USER{user_id}: проверка подписки завершена, результат: {is_subscribed}")
+    logger.info(
+        f"USER{user_id}: проверка подписки завершена, результат: {is_subscribed}"
+    )
 
     return is_subscribed
 
@@ -113,7 +128,9 @@ async def update_user_subscription_status(bot: Bot, user_id: int) -> bool:
     conversation.subscription_verified = 1 if is_subscribed else 0
     await conversation.update_in_db()
 
-    logger.info(f"USER{user_id}: статус подписки обновлен в БД: {conversation.subscription_verified}")
+    logger.info(
+        f"USER{user_id}: статус подписки обновлен в БД: {conversation.subscription_verified}"
+    )
 
     return is_subscribed
 
@@ -148,12 +165,17 @@ async def subscription_check_loop(bot: Bot):
 
                     # Логируем только если статус изменился
                     if conversation.subscription_verified != new_status:
-                        logger.info(f"USER{user_id}: статус подписки изменился с {conversation.subscription_verified} на {new_status}")
+                        logger.info(
+                            f"USER{user_id}: статус подписки изменился с {conversation.subscription_verified} на {new_status}"
+                        )
                         conversation.subscription_verified = new_status
                         await conversation.update_in_db()
 
                 except Exception as e:
-                    logger.error(f"Ошибка при проверке подписки USER{user_id}: {e}", exc_info=True)
+                    logger.error(
+                        f"Ошибка при проверке подписки USER{user_id}: {e}",
+                        exc_info=True,
+                    )
                     continue
 
             logger.debug("Проверка подписок пользователей завершена")
@@ -164,7 +186,9 @@ async def subscription_check_loop(bot: Bot):
             from database import DATABASE_NAME
 
             async with aiosqlite.connect(DATABASE_NAME) as db:
-                cursor = await db.execute("SELECT chat_id, verified_by_user_id, user_name FROM chat_verifications")
+                cursor = await db.execute(
+                    "SELECT chat_id, verified_by_user_id, user_name FROM chat_verifications"
+                )
                 chat_verifications = await cursor.fetchall()
 
             if chat_verifications:
@@ -173,7 +197,9 @@ async def subscription_check_loop(bot: Bot):
                 for chat_id, verifier_user_id, verifier_name in chat_verifications:
                     try:
                         # Проверяем подписку пользователя-верификатора
-                        is_subscribed = await is_user_subscribed_to_all(bot, verifier_user_id)
+                        is_subscribed = await is_user_subscribed_to_all(
+                            bot, verifier_user_id
+                        )
 
                         if not is_subscribed:
                             # Верификатор отписался - удаляем верификацию чата
@@ -187,12 +213,14 @@ async def subscription_check_loop(bot: Bot):
 
                             logger.info(f"CHAT{chat_id}: верификация удалена")
                         else:
-                            logger.debug(f"CHAT{chat_id}: верификатор {verifier_name} подписан, всё ОК")
+                            logger.debug(
+                                f"CHAT{chat_id}: верификатор {verifier_name} подписан, всё ОК"
+                            )
 
                     except Exception as e:
                         logger.error(
                             f"Ошибка при проверке верификации CHAT{chat_id}: {e}",
-                            exc_info=True
+                            exc_info=True,
                         )
                         continue
 
@@ -201,10 +229,10 @@ async def subscription_check_loop(bot: Bot):
                 logger.debug("Нет верифицированных чатов для проверки")
 
         except Exception as e:
-            logger.error(f"Критическая ошибка в фоновой задаче проверки подписок: {e}", exc_info=True)
+            logger.error(
+                f"Критическая ошибка в фоновой задаче проверки подписок: {e}",
+                exc_info=True,
+            )
 
         # Ждем 30 минут до следующей проверки
         await asyncio.sleep(1800)
-
-
-

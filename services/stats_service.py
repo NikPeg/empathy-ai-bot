@@ -101,8 +101,7 @@ async def generate_hourly_stats(
     hours = list(range(24))
     num_days = len(date_hour_counts) if date_hour_counts else 1
     avg_counts = [
-        sum(hourly_averages[h]) / num_days if hourly_averages[h] else 0
-        for h in hours
+        sum(hourly_averages[h]) / num_days if hourly_averages[h] else 0 for h in hours
     ]
 
     # Создаем график
@@ -185,7 +184,9 @@ async def generate_weekly_stats(
 
     # Создаем график
     plt.figure(figsize=(12, 6))
-    bars = plt.bar(day_names, avg_counts, color="lightgreen", edgecolor="darkgreen", alpha=0.7)
+    bars = plt.bar(
+        day_names, avg_counts, color="lightgreen", edgecolor="darkgreen", alpha=0.7
+    )
 
     # Подсвечиваем максимальные значения
     if avg_counts:
@@ -267,4 +268,3 @@ async def generate_user_stats(
     total_users = await get_total_users_count() if user_id is None else None
 
     return hourly_graph, weekly_graph, len(timestamps), total_users
-

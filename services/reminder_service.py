@@ -92,19 +92,15 @@ async def send_reminder_to_user(user_id: int):
 
     # Добавляем сообщения из истории (убираем timestamp, он не нужен для LLM API)
     for msg in context_messages:
-        prompt_for_request.append({
-            "role": msg["role"],
-            "content": msg["content"]
-        })
+        prompt_for_request.append({"role": msg["role"], "content": msg["content"]})
 
     # Добавляем явный user запрос, если нет сообщений в истории или последнее не от user
     # Это необходимо, чтобы модель понимала что нужно ответить
     if not context_messages or context_messages[-1]["role"] != "user":
-        user_prompt = USER_PROMPTS_BY_TYPE.get(reminder_type, "Привет! Напомни мне о себе")
-        prompt_for_request.append({
-            "role": "user",
-            "content": user_prompt
-        })
+        user_prompt = USER_PROMPTS_BY_TYPE.get(
+            reminder_type, "Привет! Напомни мне о себе"
+        )
+        prompt_for_request.append({"role": "user", "content": user_prompt})
 
     # Логируем промпт перед отправкой
     log_prompt(user_id, prompt_for_request, f"REMINDER_{reminder_type.upper()}")
@@ -143,12 +139,17 @@ async def send_reminder_to_user(user_id: int):
                 # Проверяем, это чат или пользователь
                 if user_id < 0:
                     # Это чат - удаляем все данные
-                    logger.warning(f"CHAT{user_id} заблокировал бота или бот был удален из чата")
+                    logger.warning(
+                        f"CHAT{user_id} заблокировал бота или бот был удален из чата"
+                    )
                     try:
                         await delete_chat_data(user_id)
                         logger.info(f"CHAT{user_id}: все данные удалены из БД")
                     except Exception as e:
-                        logger.error(f"CHAT{user_id}: ошибка при удалении данных - {e}", exc_info=True)
+                        logger.error(
+                            f"CHAT{user_id}: ошибка при удалении данных - {e}",
+                            exc_info=True,
+                        )
                 else:
                     # Это пользователь - отключаем напоминания
                     conversation.remind_of_yourself = 0
@@ -178,10 +179,15 @@ async def send_reminder_to_user(user_id: int):
         conversation.remind_of_yourself = now_msk.strftime("%Y-%m-%d %H:%M:%S")
         await conversation.update_in_db()
 
-        logger.info(f"LLM{user_id}REMINDER[{reminder_type.upper()}] - {generated_message.text}")
+        logger.info(
+            f"LLM{user_id}REMINDER[{reminder_type.upper()}] - {generated_message.text}"
+        )
 
     except Exception as e:
-        logger.error(f"Ошибка при отправке напоминания пользователю {user_id}: {e}", exc_info=True)
+        logger.error(
+            f"Ошибка при отправке напоминания пользователю {user_id}: {e}",
+            exc_info=True,
+        )
         raise  # Выбрасываем исключение для корректного подсчета ошибок
 
 
@@ -211,7 +217,9 @@ async def check_and_send_reminders():
             error_count += 1
             logger.error(f"Ошибка при обработке напоминания для {user_id}: {e}")
 
-    logger.info(f"✅ Проверка завершена: отправлено {success_count} напоминаний, ошибок: {error_count}")
+    logger.info(
+        f"✅ Проверка завершена: отправлено {success_count} напоминаний, ошибок: {error_count}"
+    )
 
 
 async def reminder_loop():

@@ -59,4 +59,3 @@ async def downgrade():
             await db.commit()
             return "Таблица conversations переименована обратно в users"
         return "Таблица conversations не найдена"
-

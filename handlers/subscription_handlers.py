@@ -5,6 +5,7 @@
 from datetime import datetime, timedelta, timezone
 
 from aiogram import types
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from bot_instance import bot, dp
@@ -25,22 +26,22 @@ def get_subscription_keyboard() -> InlineKeyboardMarkup:
         if channel.startswith("@"):
             channel_name = channel[1:]
             button = InlineKeyboardButton(
-                text=f"📢 {channel_name}",
-                url=f"https://t.me/{channel_name}"
+                text=f"📢 {channel_name}", url=f"https://t.me/{channel_name}"
             )
             buttons.append([button])
 
     # Добавляем кнопку "Я подписался"
     check_button = InlineKeyboardButton(
-        text=MESSAGES["btn_check_subscription"],
-        callback_data="check_subscription"
+        text=MESSAGES["btn_check_subscription"], callback_data="check_subscription"
     )
     buttons.append([check_button])
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-async def send_subscription_request(chat_id: int, message_id: int = None, is_chat: bool = False):
+async def send_subscription_request(
+    chat_id: int, message_id: int = None, is_chat: bool = False
+):
     """
     Отправляет сообщение с просьбой подписаться на каналы.
 
@@ -50,7 +51,11 @@ async def send_subscription_request(chat_id: int, message_id: int = None, is_cha
         is_chat: True если это групповой чат, False если ЛС
     """
     # Выбираем правильное сообщение в зависимости от типа чата
-    message_text = MESSAGES["msg_subscription_required_chat"] if is_chat else MESSAGES["msg_subscription_required"]
+    message_text = (
+        MESSAGES["msg_subscription_required_chat"]
+        if is_chat
+        else MESSAGES["msg_subscription_required"]
+    )
     keyboard = get_subscription_keyboard()
 
     if message_id:
@@ -58,13 +63,11 @@ async def send_subscription_request(chat_id: int, message_id: int = None, is_cha
             chat_id=chat_id,
             text=message_text,
             reply_to_message_id=message_id,
-            reply_markup=keyboard
+            reply_markup=keyboard,
         )
     else:
         await bot.send_message(
-            chat_id=chat_id,
-            text=message_text,
-            reply_markup=keyboard
+            chat_id=chat_id, text=message_text, reply_markup=keyboard
         )
 
 
@@ -80,7 +83,9 @@ async def process_subscription_check(callback_query: types.CallbackQuery):
     chat_id = callback_query.message.chat.id
     is_chat = not is_private_chat(callback_query.message)
 
-    logger.info(f"USER{user_id}: запрос проверки подписки ({'чат' if is_chat else 'ЛС'})")
+    logger.info(
+        f"USER{user_id}: запрос проверки подписки ({'чат' if is_chat else 'ЛС'})"
+    )
 
     # Показываем индикатор загрузки
     await callback_query.answer("Проверяю подписку...", show_alert=False)
@@ -100,13 +105,17 @@ async def process_subscription_check(callback_query: types.CallbackQuery):
                 timestamp = current_time.strftime("%Y-%m-%d %H:%M:%S")
 
                 # Получаем имя пользователя
-                user_name = callback_query.from_user.first_name or callback_query.from_user.username or "Неизвестный"
+                user_name = (
+                    callback_query.from_user.first_name
+                    or callback_query.from_user.username
+                    or "Неизвестный"
+                )
 
                 chat_verification = ChatVerification(
                     chat_id=chat_id,
                     verified_by_user_id=user_id,
                     verified_at=timestamp,
-                    user_name=user_name
+                    user_name=user_name,
                 )
                 await chat_verification.save_to_db()
 
@@ -116,10 +125,14 @@ async def process_subscription_check(callback_query: types.CallbackQuery):
                 # Отправляем подтверждение В ЧАТ
                 await bot.send_message(
                     chat_id=chat_id,
-                    text=MESSAGES["msg_subscription_verified_chat"].format(user_name=user_name)
+                    text=MESSAGES["msg_subscription_verified_chat"].format(
+                        user_name=user_name
+                    ),
                 )
 
-                logger.info(f"CHAT{chat_id}: верифицирован пользователем {user_name} (ID: {user_id})")
+                logger.info(
+                    f"CHAT{chat_id}: верифицирован пользователем {user_name} (ID: {user_id})"
+                )
             else:
                 # === ЛИЧНЫЙ ЧАТ ===
                 # Обновляем статус в БД
@@ -133,8 +146,7 @@ async def process_subscription_check(callback_query: types.CallbackQuery):
 
                 # Отправляем подтверждение в ЛС
                 await bot.send_message(
-                    chat_id=user_id,
-                    text=MESSAGES["msg_subscription_verified"]
+                    chat_id=user_id, text=MESSAGES["msg_subscription_verified"]
                 )
 
         else:
@@ -145,20 +157,23 @@ async def process_subscription_check(callback_query: types.CallbackQuery):
             error_message = MESSAGES["msg_subscription_check_failed"]
 
             await callback_query.answer(
-                "❌ Вы еще не подписаны на все каналы",
-                show_alert=True
+                "❌ Вы еще не подписаны на все каналы", show_alert=True
             )
 
             # Обновляем сообщение
-            await callback_query.message.edit_text(
-                text=error_message,
-                reply_markup=get_subscription_keyboard()
-            )
+            try:
+                await callback_query.message.edit_text(
+                    text=error_message, reply_markup=get_subscription_keyboard()
+                )
+            except TelegramBadRequest as e:
+                # Игнорируем ошибку, если сообщение не изменилось
+                # (пользователь нажал кнопку повторно без подписки)
+                if "message is not modified" not in str(e):
+                    raise
 
     except Exception as e:
         logger.error(f"Ошибка при проверке подписки USER{user_id}: {e}", exc_info=True)
         await callback_query.answer(
             "⚠️ Произошла ошибка при проверке подписки. Попробуйте позже.",
-            show_alert=True
+            show_alert=True,
         )
-

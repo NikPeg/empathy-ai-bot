@@ -38,7 +38,9 @@ async def upgrade():
         )
         count = (await cursor.fetchone())[0]
 
-        return f"Обновлено пользователей: {count} (установлен NULL вместо дефолтной даты)"
+        return (
+            f"Обновлено пользователей: {count} (установлен NULL вместо дефолтной даты)"
+        )
 
 
 async def downgrade():
@@ -56,4 +58,3 @@ async def downgrade():
         await db.commit()
 
         return "Откат выполнен: восстановлена дефолтная дата"
-

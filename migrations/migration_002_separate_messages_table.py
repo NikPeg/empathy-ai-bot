@@ -74,7 +74,7 @@ async def migrate(db: aiosqlite.Connection):
                         INSERT INTO messages (user_id, role, content, timestamp)
                         VALUES (?, ?, ?, ?)
                         """,
-                        (user_id, role, content, timestamp)
+                        (user_id, role, content, timestamp),
                     )
                     total_messages += 1
 
@@ -86,7 +86,9 @@ async def migrate(db: aiosqlite.Connection):
 
     await db.commit()
 
-    print(f"  📊 Перенесено {total_messages} сообщений от {users_migrated} пользователей")
+    print(
+        f"  📊 Перенесено {total_messages} сообщений от {users_migrated} пользователей"
+    )
 
     # Добавляем поле active_messages_count в таблицу users
     print("  🔧 Добавляем поле active_messages_count в таблицу users...")
@@ -113,4 +115,3 @@ async def migrate(db: aiosqlite.Connection):
     await db.commit()
 
     print("  ✅ Миграция завершена успешно!")
-

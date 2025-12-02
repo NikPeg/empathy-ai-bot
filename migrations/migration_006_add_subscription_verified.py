@@ -54,4 +54,3 @@ async def downgrade():
         await db.commit()
 
         return "Удалено поле subscription_verified"
-

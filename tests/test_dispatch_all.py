@@ -58,6 +58,7 @@ async def test_db():
 
     # Патчим DATABASE_NAME
     import database
+
     original_db = database.DATABASE_NAME
     database.DATABASE_NAME = test_db_name
 
@@ -89,15 +90,13 @@ async def test_delete_from_db(test_db):
     # Проверяем, что пользователь и сообщения есть в БД
     async with aiosqlite.connect(test_db) as db:
         cursor = await db.execute(
-            "SELECT COUNT(*) FROM conversations WHERE id = ?",
-            (test_user_id,)
+            "SELECT COUNT(*) FROM conversations WHERE id = ?", (test_user_id,)
         )
         user_count = (await cursor.fetchone())[0]
         assert user_count == 1, "Пользователь должен быть в БД"
 
         cursor = await db.execute(
-            "SELECT COUNT(*) FROM messages WHERE user_id = ?",
-            (test_user_id,)
+            "SELECT COUNT(*) FROM messages WHERE user_id = ?", (test_user_id,)
         )
         msg_count = (await cursor.fetchone())[0]
         assert msg_count == 3, "Сообщения должны быть в БД"
@@ -109,15 +108,13 @@ async def test_delete_from_db(test_db):
     # Проверяем, что пользователь и сообщения удалены
     async with aiosqlite.connect(test_db) as db:
         cursor = await db.execute(
-            "SELECT COUNT(*) FROM conversations WHERE id = ?",
-            (test_user_id,)
+            "SELECT COUNT(*) FROM conversations WHERE id = ?", (test_user_id,)
         )
         user_count = (await cursor.fetchone())[0]
         assert user_count == 0, "Пользователь должен быть удален из БД"
 
         cursor = await db.execute(
-            "SELECT COUNT(*) FROM messages WHERE user_id = ?",
-            (test_user_id,)
+            "SELECT COUNT(*) FROM messages WHERE user_id = ?", (test_user_id,)
         )
         msg_count = (await cursor.fetchone())[0]
         assert msg_count == 0, "Сообщения должны быть удалены из БД"
@@ -156,7 +153,9 @@ async def test_dispatch_all_removes_blocked_users(test_db):
     # User2 заблокировал бота, остальные нет
     async def mock_send_message(user_id, text):
         if user_id == user2_id:
-            raise TelegramForbiddenError(method="sendMessage", message="Forbidden: bot was blocked by the user")
+            raise TelegramForbiddenError(
+                method="sendMessage", message="Forbidden: bot was blocked by the user"
+            )
         return True
 
     success_count = 0
@@ -186,8 +185,7 @@ async def test_dispatch_all_removes_blocked_users(test_db):
     # Проверяем, что сообщения User2 тоже удалены
     async with aiosqlite.connect(test_db) as db:
         cursor = await db.execute(
-            "SELECT COUNT(*) FROM messages WHERE user_id = ?",
-            (user2_id,)
+            "SELECT COUNT(*) FROM messages WHERE user_id = ?", (user2_id,)
         )
         msg_count = (await cursor.fetchone())[0]
         assert msg_count == 0, "Сообщения User2 должны быть удалены"
@@ -220,4 +218,3 @@ async def test_get_ids_from_table_returns_all_users(test_db):
     assert 55555 in all_ids, "User1 должен быть в списке"
     assert 66666 in all_ids, "User2 (с выключенными напоминаниями) должен быть в списке"
     assert 77777 in all_ids, "User3 должен быть в списке"
-

@@ -57,6 +57,7 @@ async def test_db():
 
     # Патчим DATABASE_NAME
     import database
+
     original_db = database.DATABASE_NAME
     database.DATABASE_NAME = test_db_name
 
@@ -94,7 +95,9 @@ async def test_forget_first_message_in_context(test_db):
 
     # Получаем контекст (должен быть пустым)
     context_before = await conversation.get_context_for_llm()
-    assert len(context_before) == 0, "Контекст должен быть пустым при active_messages_count = 0"
+    assert len(context_before) == 0, (
+        "Контекст должен быть пустым при active_messages_count = 0"
+    )
 
     # Формируем промпт как в реальном коде
     prompt_for_request = [{"role": "system", "content": "Системный промпт"}]
@@ -106,9 +109,13 @@ async def test_forget_first_message_in_context(test_db):
     prompt_for_request.append({"role": "user", "content": message1})
 
     # Проверяем: в промпте должно быть текущее сообщение
-    user_messages_in_prompt = [msg for msg in prompt_for_request if msg["role"] == "user"]
+    user_messages_in_prompt = [
+        msg for msg in prompt_for_request if msg["role"] == "user"
+    ]
     assert len(user_messages_in_prompt) == 1, "В промпте должно быть 1 user сообщение"
-    assert user_messages_in_prompt[0]["content"] == message1, "Текст сообщения должен совпадать"
+    assert user_messages_in_prompt[0]["content"] == message1, (
+        "Текст сообщения должен совпадать"
+    )
 
 
 @pytest.mark.asyncio
@@ -151,9 +158,15 @@ async def test_forget_second_message_has_context(test_db):
     context_before = await conversation.get_context_for_llm()
     assert len(context_before) == 2, "Контекст должен содержать 2 сообщения"
     assert context_before[0]["role"] == "user", "Первое сообщение должно быть от user"
-    assert context_before[0]["content"] == message1, "Содержимое первого сообщения должно совпадать"
-    assert context_before[1]["role"] == "assistant", "Второе сообщение должно быть от assistant"
-    assert context_before[1]["content"] == llm_response1, "Содержимое второго сообщения должно совпадать"
+    assert context_before[0]["content"] == message1, (
+        "Содержимое первого сообщения должно совпадать"
+    )
+    assert context_before[1]["role"] == "assistant", (
+        "Второе сообщение должно быть от assistant"
+    )
+    assert context_before[1]["content"] == llm_response1, (
+        "Содержимое второго сообщения должно совпадать"
+    )
 
     # Формируем промпт
     prompt_for_request = [{"role": "system", "content": "Системный промпт"}]
@@ -164,10 +177,16 @@ async def test_forget_second_message_has_context(test_db):
     prompt_for_request.append({"role": "user", "content": message2})
 
     # Проверяем: в промпте должны быть оба user сообщения
-    user_messages_in_prompt = [msg for msg in prompt_for_request if msg["role"] == "user"]
+    user_messages_in_prompt = [
+        msg for msg in prompt_for_request if msg["role"] == "user"
+    ]
     assert len(user_messages_in_prompt) == 2, "В промпте должно быть 2 user сообщения"
-    assert user_messages_in_prompt[0]["content"] == message1, "Первое user сообщение должно быть в контексте"
-    assert user_messages_in_prompt[1]["content"] == message2, "Второе user сообщение - текущее"
+    assert user_messages_in_prompt[0]["content"] == message1, (
+        "Первое user сообщение должно быть в контексте"
+    )
+    assert user_messages_in_prompt[1]["content"] == message2, (
+        "Второе user сообщение - текущее"
+    )
 
 
 @pytest.mark.asyncio
@@ -191,7 +210,9 @@ async def test_forget_counter_increments(test_db):
     # Проверяем начальное значение
     conversation = Conversation(test_user_id)
     await conversation.get_from_db()
-    assert conversation.active_messages_count == 0, "После /forget счетчик должен быть 0"
+    assert conversation.active_messages_count == 0, (
+        "После /forget счетчик должен быть 0"
+    )
 
     # Первая пара сообщений
     await conversation.update_prompt("user", "Сообщение 1")
@@ -202,7 +223,9 @@ async def test_forget_counter_increments(test_db):
 
     conversation = Conversation(test_user_id)
     await conversation.get_from_db()
-    assert conversation.active_messages_count == 2, "После первой пары счетчик должен быть 2"
+    assert conversation.active_messages_count == 2, (
+        "После первой пары счетчик должен быть 2"
+    )
 
     # Вторая пара сообщений
     await conversation.update_prompt("user", "Сообщение 2")
@@ -213,7 +236,9 @@ async def test_forget_counter_increments(test_db):
 
     conversation = Conversation(test_user_id)
     await conversation.get_from_db()
-    assert conversation.active_messages_count == 4, "После второй пары счетчик должен быть 4"
+    assert conversation.active_messages_count == 4, (
+        "После второй пары счетчик должен быть 4"
+    )
 
 
 @pytest.mark.asyncio
@@ -245,8 +270,7 @@ async def test_forget_messages_saved_in_db(test_db):
     # Проверяем что все сообщения в БД
     async with aiosqlite.connect(test_db) as db:
         cursor = await db.execute(
-            "SELECT COUNT(*) FROM messages WHERE user_id = ?",
-            (test_user_id,)
+            "SELECT COUNT(*) FROM messages WHERE user_id = ?", (test_user_id,)
         )
         count = (await cursor.fetchone())[0]
 
@@ -254,4 +278,6 @@ async def test_forget_messages_saved_in_db(test_db):
 
     # Но в контекст попадают только последние 2
     context = await conversation.get_context_for_llm()
-    assert len(context) == 0, "Контекст должен быть пустым при active_messages_count = 0"
+    assert len(context) == 0, (
+        "Контекст должен быть пустым при active_messages_count = 0"
+    )

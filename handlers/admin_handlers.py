@@ -98,7 +98,9 @@ async def cmd_dispatch_all_input_text(message: types.Message, state: FSMContext)
         await bot.send_message(message.chat.id, result_msg)
 
     except Exception as e:
-        error_msg = f"USER{message.chat.id} - ошибка при отправке {e}. Вы в главном меню"
+        error_msg = (
+            f"USER{message.chat.id} - ошибка при отправке {e}. Вы в главном меню"
+        )
         logger.error(error_msg, exc_info=True)
 
         with contextlib.suppress(Exception):
@@ -149,7 +151,12 @@ async def cmd_stats(message: types.Message):
 
     try:
         # Генерируем статистику
-        hourly_graph, weekly_graph, total_messages, total_users = await generate_user_stats(user_id)
+        (
+            hourly_graph,
+            weekly_graph,
+            total_messages,
+            total_users,
+        ) = await generate_user_stats(user_id)
 
         if hourly_graph is None:
             await status_msg.edit_text(
@@ -191,7 +198,9 @@ async def cmd_stats(message: types.Message):
 
         # Проверка подписок пользователей и чатов (только если запрос по всем пользователям)
         if not user_id:
-            sub_status_msg = await message.answer("⏳ Проверяю подписки пользователей и чатов на каналы...")
+            sub_status_msg = await message.answer(
+                "⏳ Проверяю подписки пользователей и чатов на каналы..."
+            )
 
             try:
                 all_user_ids = await Conversation.get_ids_from_table()
@@ -233,13 +242,18 @@ async def cmd_stats(message: types.Message):
 
                         # Логируем если статус изменился
                         if old_status != new_status:
-                            logger.info(f"USER{uid}: статус подписки обновлен с {old_status} на {new_status}")
+                            logger.info(
+                                f"USER{uid}: статус подписки обновлен с {old_status} на {new_status}"
+                            )
 
                         # Небольшая задержка между проверками
                         await asyncio.sleep(0.05)
 
                     except Exception as e:
-                        logger.error(f"Ошибка при проверке подписки USER{uid}: {e}", exc_info=True)
+                        logger.error(
+                            f"Ошибка при проверке подписки USER{uid}: {e}",
+                            exc_info=True,
+                        )
                         continue
 
                 # ========== ПРОВЕРКА ГРУППОВЫХ ЧАТОВ ==========
@@ -248,7 +262,9 @@ async def cmd_stats(message: types.Message):
                 from database import DATABASE_NAME, ChatVerification
 
                 async with aiosqlite.connect(DATABASE_NAME) as db:
-                    cursor = await db.execute("SELECT chat_id, verified_by_user_id, user_name FROM chat_verifications")
+                    cursor = await db.execute(
+                        "SELECT chat_id, verified_by_user_id, user_name FROM chat_verifications"
+                    )
                     chat_verifications = await cursor.fetchall()
 
                 chat_subscribed_count = 0
@@ -257,11 +273,15 @@ async def cmd_stats(message: types.Message):
                 for chat_id, verifier_user_id, verifier_name in chat_verifications:
                     try:
                         # Проверяем подписку пользователя-верификатора
-                        is_subscribed = await is_user_subscribed_to_all(bot, verifier_user_id)
+                        is_subscribed = await is_user_subscribed_to_all(
+                            bot, verifier_user_id
+                        )
 
                         if is_subscribed:
                             chat_subscribed_count += 1
-                            logger.debug(f"CHAT{chat_id}: верификатор {verifier_name} подписан")
+                            logger.debug(
+                                f"CHAT{chat_id}: верификатор {verifier_name} подписан"
+                            )
                         else:
                             chat_not_subscribed_count += 1
                             # Верификатор отписался - удаляем верификацию чата
@@ -276,7 +296,10 @@ async def cmd_stats(message: types.Message):
                         await asyncio.sleep(0.05)
 
                     except Exception as e:
-                        logger.error(f"Ошибка при проверке верификации CHAT{chat_id}: {e}", exc_info=True)
+                        logger.error(
+                            f"Ошибка при проверке верификации CHAT{chat_id}: {e}",
+                            exc_info=True,
+                        )
                         continue
 
                 # Формируем отчет по подпискам
@@ -308,8 +331,12 @@ async def cmd_stats(message: types.Message):
                 )
 
             except Exception as sub_error:
-                logger.error(f"Ошибка при проверке подписок: {sub_error}", exc_info=True)
-                await sub_status_msg.edit_text(f"❌ Ошибка при проверке подписок: {sub_error}")
+                logger.error(
+                    f"Ошибка при проверке подписок: {sub_error}", exc_info=True
+                )
+                await sub_status_msg.edit_text(
+                    f"❌ Ошибка при проверке подписок: {sub_error}"
+                )
 
     except Exception as e:
         error_msg = f"❌ Ошибка при генерации статистики: {e}"
@@ -338,10 +365,11 @@ async def cmd_set_reminder_times_input(message: types.Message, state: FSMContext
     try:
         # Парсим введенные времена (формат: HH:MM HH:MM HH:MM)
         import re
+
         times_text = message.text.strip()
 
         # Извлекаем все времена в формате HH:MM
-        time_pattern = r'\b([0-2]?[0-9]):([0-5][0-9])\b'
+        time_pattern = r"\b([0-2]?[0-9]):([0-5][0-9])\b"
         matches = re.findall(time_pattern, times_text)
 
         if not matches:
@@ -372,7 +400,9 @@ async def cmd_set_reminder_times_input(message: types.Message, state: FSMContext
         await conversation.update_in_db()
 
         times_display = ", ".join(reminder_times)
-        success_msg = f"✅ Времена напоминаний для USER{user_id} обновлены: {times_display}"
+        success_msg = (
+            f"✅ Времена напоминаний для USER{user_id} обновлены: {times_display}"
+        )
 
         await message.answer(success_msg)
         logger.info(success_msg)
@@ -408,13 +438,18 @@ async def cmd_send_reminders(message: types.Message):
 
         from database import DATABASE_NAME
 
-        async with aiosqlite.connect(DATABASE_NAME) as db, db.execute(
-            "SELECT id FROM conversations WHERE remind_of_yourself != '0'"
-        ) as cursor:
+        async with (
+            aiosqlite.connect(DATABASE_NAME) as db,
+            db.execute(
+                "SELECT id FROM conversations WHERE remind_of_yourself != '0'"
+            ) as cursor,
+        ):
             user_ids = [row[0] for row in await cursor.fetchall()]
 
         if not user_ids:
-            await status_msg.edit_text("❌ Нет пользователей с включенными напоминаниями")
+            await status_msg.edit_text(
+                "❌ Нет пользователей с включенными напоминаниями"
+            )
             return
 
         success_count = 0
@@ -466,7 +501,9 @@ async def cmd_set_reminder_times(message: types.Message, state: FSMContext):
     Команда /set_reminder_times - установка времен напоминаний для пользователя.
     Использовать как ответ на сообщение с USER ID.
     """
-    logger.info(f"Команда /set_reminder_times получена от пользователя {message.chat.id}")
+    logger.info(
+        f"Команда /set_reminder_times получена от пользователя {message.chat.id}"
+    )
     user_id = None
 
     # Проверяем, является ли сообщение ответом на другое сообщение
@@ -493,6 +530,6 @@ async def cmd_set_reminder_times(message: types.Message, state: FSMContext):
         f"Формат: HH:MM HH:MM HH:MM\n"
         f"Например: 09:00 14:30 19:15\n\n"
         f"Можно ввести одно или несколько времен через пробел.",
-        reply_markup=ReplyKeyboardRemove()
+        reply_markup=ReplyKeyboardRemove(),
     )
     await state.set_state(AdminSetReminderTimes.input_times)

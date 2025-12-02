@@ -64,6 +64,7 @@ async def test_db():
 
     # Патчим DATABASE_NAME
     import database
+
     original_db = database.DATABASE_NAME
     database.DATABASE_NAME = test_db_name
 
@@ -90,7 +91,7 @@ async def test_reminders_at_correct_time(test_db):
     mock_time = datetime(2025, 11, 7, 14, 32, 0)
     mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
 
-    with patch('database.datetime') as mock_datetime:
+    with patch("database.datetime") as mock_datetime:
         mock_datetime.now.return_value = mock_time_with_tz
         mock_datetime.strptime = datetime.strptime
 
@@ -114,13 +115,15 @@ async def test_reminders_outside_time_window(test_db):
     mock_time = datetime(2025, 11, 7, 15, 0, 0)
     mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
 
-    with patch('database.datetime') as mock_datetime:
+    with patch("database.datetime") as mock_datetime:
         mock_datetime.now.return_value = mock_time_with_tz
         mock_datetime.strptime = datetime.strptime
 
         user_ids = await get_past_dates()
 
-    assert user_id not in user_ids, "Пользователь НЕ должен быть в списке (время не подходит)"
+    assert user_id not in user_ids, (
+        "Пользователь НЕ должен быть в списке (время не подходит)"
+    )
 
 
 @pytest.mark.asyncio
@@ -138,13 +141,15 @@ async def test_reminders_disabled_users(test_db):
     mock_time = datetime(2025, 11, 7, 14, 32, 0)
     mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
 
-    with patch('database.datetime') as mock_datetime:
+    with patch("database.datetime") as mock_datetime:
         mock_datetime.now.return_value = mock_time_with_tz
         mock_datetime.strptime = datetime.strptime
 
         user_ids = await get_past_dates()
 
-    assert user_id not in user_ids, "Пользователь с отключенными напоминаниями НЕ должен быть в списке"
+    assert user_id not in user_ids, (
+        "Пользователь с отключенными напоминаниями НЕ должен быть в списке"
+    )
 
 
 @pytest.mark.asyncio
@@ -166,13 +171,15 @@ async def test_reminders_recently_sent(test_db):
     mock_time = datetime(2025, 11, 7, 14, 32, 0)
     mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
 
-    with patch('database.datetime') as mock_datetime:
+    with patch("database.datetime") as mock_datetime:
         mock_datetime.now.return_value = mock_time_with_tz
         mock_datetime.strptime = datetime.strptime
 
         user_ids = await get_past_dates()
 
-    assert user_id not in user_ids, "Пользователь НЕ должен получить напоминание (прошло менее часа)"
+    assert user_id not in user_ids, (
+        "Пользователь НЕ должен получить напоминание (прошло менее часа)"
+    )
 
 
 @pytest.mark.asyncio
@@ -194,13 +201,15 @@ async def test_reminders_after_one_hour(test_db):
     mock_time = datetime(2025, 11, 7, 14, 32, 0)
     mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
 
-    with patch('database.datetime') as mock_datetime:
+    with patch("database.datetime") as mock_datetime:
         mock_datetime.now.return_value = mock_time_with_tz
         mock_datetime.strptime = datetime.strptime
 
         user_ids = await get_past_dates()
 
-    assert user_id in user_ids, "Пользователь должен получить напоминание (прошло больше часа)"
+    assert user_id in user_ids, (
+        "Пользователь должен получить напоминание (прошло больше часа)"
+    )
 
 
 @pytest.mark.asyncio
@@ -210,7 +219,9 @@ async def test_reminders_multiple_times(test_db):
     """
     # Создаем пользователя с несколькими временами
     user_id = 66666
-    conversation = Conversation(user_id, name="TestUser6", reminder_times=["09:00", "14:30", "19:15"])
+    conversation = Conversation(
+        user_id, name="TestUser6", reminder_times=["09:00", "14:30", "19:15"]
+    )
     conversation.remind_of_yourself = None
     await conversation.save_for_db()
 
@@ -218,13 +229,15 @@ async def test_reminders_multiple_times(test_db):
     mock_time = datetime(2025, 11, 7, 14, 32, 0)
     mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
 
-    with patch('database.datetime') as mock_datetime:
+    with patch("database.datetime") as mock_datetime:
         mock_datetime.now.return_value = mock_time_with_tz
         mock_datetime.strptime = datetime.strptime
 
         user_ids = await get_past_dates()
 
-    assert user_id in user_ids, "Пользователь должен быть в списке (подходит второе время)"
+    assert user_id in user_ids, (
+        "Пользователь должен быть в списке (подходит второе время)"
+    )
 
 
 @pytest.mark.asyncio
@@ -249,7 +262,7 @@ async def test_reminders_null_vs_disabled(test_db):
     mock_time = datetime(2025, 11, 7, 14, 32, 0)
     mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
 
-    with patch('database.datetime') as mock_datetime:
+    with patch("database.datetime") as mock_datetime:
         mock_datetime.now.return_value = mock_time_with_tz
         mock_datetime.strptime = datetime.strptime
 
@@ -273,8 +286,7 @@ async def test_reminders_default_time(test_db):
     # Проверяем, что в БД сохранилось дефолтное время
     async with aiosqlite.connect(test_db) as db:
         cursor = await db.execute(
-            "SELECT reminder_times FROM conversations WHERE id = ?",
-            (user_id,)
+            "SELECT reminder_times FROM conversations WHERE id = ?", (user_id,)
         )
         row = await cursor.fetchone()
         reminder_times = json.loads(row[0]) if row[0] else ["19:15"]
@@ -284,13 +296,15 @@ async def test_reminders_default_time(test_db):
     mock_time = datetime(2025, 11, 7, 19, 17, 0)
     mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
 
-    with patch('database.datetime') as mock_datetime:
+    with patch("database.datetime") as mock_datetime:
         mock_datetime.now.return_value = mock_time_with_tz
         mock_datetime.strptime = datetime.strptime
 
         user_ids = await get_past_dates()
 
-    assert user_id in user_ids, "Пользователь с дефолтным временем должен получить напоминание"
+    assert user_id in user_ids, (
+        "Пользователь с дефолтным временем должен получить напоминание"
+    )
 
 
 @pytest.mark.asyncio
@@ -313,7 +327,7 @@ async def test_reminders_edge_of_time_window(test_db):
     mock_time = datetime(2025, 11, 7, 14, 30, 0)
     mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
 
-    with patch('database.datetime') as mock_datetime:
+    with patch("database.datetime") as mock_datetime:
         mock_datetime.now.return_value = mock_time_with_tz
         mock_datetime.strptime = datetime.strptime
 
@@ -325,7 +339,7 @@ async def test_reminders_edge_of_time_window(test_db):
     mock_time = datetime(2025, 11, 7, 14, 44, 0)
     mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
 
-    with patch('database.datetime') as mock_datetime:
+    with patch("database.datetime") as mock_datetime:
         mock_datetime.now.return_value = mock_time_with_tz
         mock_datetime.strptime = datetime.strptime
 
@@ -342,11 +356,10 @@ async def test_reminders_edge_of_time_window(test_db):
     mock_time = datetime(2025, 11, 7, 14, 45, 0)
     mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
 
-    with patch('database.datetime') as mock_datetime:
+    with patch("database.datetime") as mock_datetime:
         mock_datetime.now.return_value = mock_time_with_tz
         mock_datetime.strptime = datetime.strptime
 
         user_ids = await get_past_dates()
 
     assert user3_id not in user_ids, "В 14:45 (разница=15) НЕ должно сработать"
-
