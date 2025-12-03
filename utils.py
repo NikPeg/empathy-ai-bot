@@ -162,13 +162,208 @@ async def should_respond_in_chat(message: types.Message) -> bool:
     return False
 
 
+def fix_nested_markdown(text: str) -> str:
+    """
+    Исправляет вложенные markdown теги и неэкранированные спецсимволы в Telegram MarkdownV2.
+
+    Обрабатывает:
+    1. Вложенные теги одного типа (_, *, ~, `, __, ||)
+    2. Неэкранированные специальные символы MarkdownV2
+
+    Обрабатываемые теги:
+    - _ (курсив/italic)
+    - * (жирный/bold)
+    - ~ (зачеркнутый/strikethrough)
+    - ` (моноширинный/code)
+    - __ (подчеркнутый/underline)
+    - || (спойлер/spoiler)
+
+    Экранируемые спецсимволы:
+    - > (цитата)
+    - # + - = | { } . !
+
+    Args:
+        text: Текст с потенциально некорректным markdown
+
+    Returns:
+        Исправленный текст
+    """
+    if not text:
+        return text
+
+    # Определяем, является ли символ частью markdown тега
+    def is_likely_tag_start(i: int, tag: str) -> bool:
+        """Проверяет, похоже ли что символ(ы) начинают тег."""
+        # Проверяем длину тега
+        if i + len(tag) > len(text):
+            return False
+
+        # Проверяем, что это правильный тег
+        if text[i:i+len(tag)] != tag:
+            return False
+
+        # В начале строки - это может быть тег
+        if i == 0:
+            next_char = text[i + len(tag)] if i + len(tag) < len(text) else ''
+            return next_char and next_char not in ' \n\t'
+
+        prev_char = text[i - 1]
+        next_char = text[i + len(tag)] if i + len(tag) < len(text) else ''
+
+        # Открывающий тег обычно идет после пробела/начала и перед не-пробелом
+        if prev_char in ' \n\t([{':
+            return next_char and next_char not in ' \n\t'
+
+        return False
+
+    def is_likely_tag_end(i: int, tag: str) -> bool:
+        """Проверяет, похоже ли что символ(ы) закрывают тег."""
+        # Проверяем длину тега
+        if i + len(tag) > len(text):
+            return False
+
+        # Проверяем, что это правильный тег
+        if text[i:i+len(tag)] != tag:
+            return False
+
+        # В конце строки - это может быть тег
+        if i + len(tag) >= len(text):
+            prev_char = text[i - 1] if i > 0 else ''
+            return prev_char and prev_char not in ' \n\t'
+
+        prev_char = text[i - 1] if i > 0 else ''
+        next_char = text[i + len(tag)]
+
+        # Закрывающий тег обычно идет после не-пробела и перед пробелом/концом
+        if prev_char and prev_char not in ' \n\t':
+            return next_char in ' \n\t.!?,;:)]}' or i + len(tag) == len(text)
+
+        return False
+
+    # Теги для обработки (от более длинных к коротким, чтобы правильно обработать __ перед _)
+    tags = ['||', '__', '_', '*', '~', '`']
+
+    result = []
+    stack = []  # Стек открытых тегов: [(tag, position_in_result)]
+    i = 0
+
+    while i < len(text):
+        matched_tag = None
+
+        # Проверяем все теги
+        for tag in tags:
+            if text[i:i+len(tag)] == tag:
+                matched_tag = tag
+                break
+
+        if not matched_tag:
+            # Обычный символ
+            result.append(text[i])
+            i += 1
+            continue
+
+        # Нашли потенциальный тег
+        tag = matched_tag
+        tag_len = len(tag)
+
+        # Проверяем, есть ли этот тег уже в стеке
+        tag_in_stack = any(t == tag for t, _ in stack)
+
+        if tag_in_stack:
+            # Тег уже открыт, это должен быть закрывающий тег
+            if is_likely_tag_end(i, tag):
+                # Закрываем тег
+                # Ищем соответствующий открывающий тег в стеке
+                found = False
+                for idx, (stack_tag, _) in enumerate(stack):
+                    if stack_tag == tag:
+                        # Нашли - закрываем
+                        stack.pop(idx)
+                        result.append(tag)
+                        found = True
+                        break
+
+                if not found:
+                    # Не нашли в стеке - экранируем
+                    result.append('\\')
+                    result.append(tag)
+            else:
+                # Это вложенный тег того же типа - экранируем
+                result.append('\\')
+                result.append(tag)
+
+            i += tag_len
+        else:
+            # Тег не в стеке
+            if is_likely_tag_start(i, tag):
+                # Открываем новый тег
+                stack.append((tag, len(result)))
+                result.append(tag)
+                i += tag_len
+            else:
+                # Не похоже на тег - оставляем как есть
+                result.append(text[i])
+                i += 1
+
+    # Если остались незакрытые теги - экранируем их
+    while stack:
+        tag, pos = stack.pop()
+        # Вставляем экранирование перед открывающим тегом
+        result.insert(pos, '\\')
+
+    fixed_text = ''.join(result)
+
+    # Шаг 2: Проверяем и экранируем специальные символы MarkdownV2
+    # Символы, которые должны быть экранированы вне markdown-тегов
+    special_chars = ['>', '#', '+', '-', '=', '{', '}', '.', '!']
+
+    result2 = []
+    i = 0
+    in_code = False  # Флаг, что мы внутри ` код `
+
+    while i < len(fixed_text):
+        char = fixed_text[i]
+
+        # Отслеживаем code блоки (внутри них не экранируем)
+        if char == '`' and (i == 0 or fixed_text[i-1] != '\\'):
+            in_code = not in_code
+            result2.append(char)
+            i += 1
+            continue
+
+        # Внутри code блоков не трогаем ничего
+        if in_code:
+            result2.append(char)
+            i += 1
+            continue
+
+        # Проверяем, нужно ли экранировать символ
+        if char in special_chars:
+            # Проверяем, не экранирован ли уже
+            if i > 0 and fixed_text[i-1] == '\\':
+                # Уже экранирован
+                result2.append(char)
+            else:
+                # Экранируем
+                result2.append('\\')
+                result2.append(char)
+            i += 1
+        else:
+            result2.append(char)
+            i += 1
+
+    return ''.join(result2)
+
+
 async def send_message_with_fallback(
     chat_id: int, text: str, **kwargs
 ) -> types.Message:
     """
     Отправляет сообщение с MARKDOWN_V2 форматированием.
-    Если возникает ошибка парсинга, отправляет тот же текст без форматирования
-    (с видимыми экранирующими символами).
+
+    Стратегия при ошибке:
+    1. Пробует исправить вложенные markdown теги
+    2. Если не помогло - отправляет без форматирования (с видимыми экранирующими символами)
 
     Args:
         chat_id: ID чата для отправки
@@ -179,23 +374,37 @@ async def send_message_with_fallback(
         Отправленное сообщение
 
     Raises:
-        Exception: Если не удалось отправить сообщение ни с одним вариантом
+        Exception: Если не удалось отправить сообщение ни одним способом
     """
     try:
         return await bot.send_message(
             chat_id=chat_id, text=text, parse_mode=ParseMode.MARKDOWN_V2, **kwargs
         )
     except Exception as e:
-        # Пробуем отправить без форматирования (с видимым экранированием)
+        # Шаг 1: Пробуем исправить markdown и отправить снова
         try:
             logger.warning(
-                f"CHAT{chat_id} - ошибка парсинга Markdown, "
-                f"отправляем с экранированием: {e}"
+                f"CHAT{chat_id} - ошибка парсинга Markdown: {e}. "
+                f"Пробуем исправить вложенные теги..."
             )
-            # Убираем parse_mode из kwargs если он там есть
-            kwargs.pop("parse_mode", None)
-            return await bot.send_message(chat_id=chat_id, text=text, **kwargs)
-        except Exception:
-            # Если и это не сработало - пробрасываем исходную ошибку
-            logger.error(f"CHAT{chat_id} - не удалось отправить сообщение: {e}")
-            raise
+            fixed_text = fix_nested_markdown(text)
+
+            return await bot.send_message(
+                chat_id=chat_id, text=fixed_text, parse_mode=ParseMode.MARKDOWN_V2, **kwargs
+            )
+        except Exception as e2:
+            # Шаг 2: Отправляем без форматирования (с видимым экранированием)
+            try:
+                logger.warning(
+                    f"CHAT{chat_id} - исправление не помогло: {e2}. "
+                    f"Отправляем без форматирования."
+                )
+                # Убираем parse_mode из kwargs если он там есть
+                kwargs.pop("parse_mode", None)
+                return await bot.send_message(chat_id=chat_id, text=text, **kwargs)
+            except Exception:
+                # Если и это не сработало - пробрасываем исходную ошибку
+                logger.error(
+                    f"CHAT{chat_id} - не удалось отправить сообщение ни одним способом: {e}"
+                )
+                raise
