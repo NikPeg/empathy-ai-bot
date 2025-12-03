@@ -10,7 +10,6 @@ import telegramify_markdown
 from aiogram.exceptions import TelegramForbiddenError
 
 import database
-from bot_instance import bot
 from config import (
     DEFAULT_PROMPT,
     REMINDER_PROMPTS,
