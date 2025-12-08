@@ -344,6 +344,62 @@ docker inspect empathy-ai-bot
 
 ---
 
+## Мониторинг деплоя
+
+### Проверка статуса в GitHub Actions
+
+После каждого push в `main`:
+
+1. Перейдите в раздел **Actions** на GitHub
+2. Выберите последний workflow run
+3. Проверьте статус каждого этапа:
+   - ✅ Test - должен быть зеленым
+   - ✅ Build and push - должен быть зеленым
+   - ✅ Deploy - должен быть зеленым
+
+### Проверка на сервере
+
+После успешного деплоя проверьте работу бота:
+
+```bash
+# Проверьте статус контейнера
+docker ps | grep empathy-ai-bot
+
+# Проверьте логи
+docker logs --tail=50 empathy-ai-bot
+
+# Проверьте использование ресурсов
+docker stats empathy-ai-bot --no-stream
+```
+
+### Проверка работоспособности бота
+
+- Отправьте тестовое сообщение боту в Telegram
+- Проверьте, что бот отвечает корректно
+- Проверьте работу команд `/start`, `/help`
+
+### Уведомления
+
+Рекомендуется настроить уведомления о статусе деплоя в Telegram. Добавьте в конец `.github/workflows/deploy.yml`:
+
+```yaml
+- name: Notify on success
+  if: success()
+  run: |
+    curl -X POST "https://api.telegram.org/bot${{ secrets.TG_TOKEN }}/sendMessage" \
+      -d "chat_id=${{ secrets.ADMIN_CHAT }}" \
+      -d "text=✅ Деплой успешно завершен! Commit: ${{ github.sha }}"
+
+- name: Notify on failure
+  if: failure()
+  run: |
+    curl -X POST "https://api.telegram.org/bot${{ secrets.TG_TOKEN }}/sendMessage" \
+      -d "chat_id=${{ secrets.ADMIN_CHAT }}" \
+      -d "text=❌ Деплой завершился с ошибкой! Проверьте Actions."
+```
+
+---
+
 ## Ручной откат
 
 Если что-то пошло не так, можно откатить деплой:
@@ -366,6 +422,23 @@ docker run -d \
   --env-file /opt/empathy-ai-bot/.env \
   -v /opt/empathy-ai-bot/data:/data \
   cr.yandex/<registry-id>/empathy-ai-bot:<старый-тег>
+```
+
+### Быстрый откат через GitHub
+
+Если нужно вернуться к предыдущему коммиту:
+
+```bash
+# Локально
+git log --oneline  # Найдите хороший коммит
+
+# Откатитесь к нему
+git revert <bad-commit-hash>
+
+# Или создайте новый коммит с исправлениями
+git push origin main
+
+# Деплой запустится автоматически
 ```
 
 ---
