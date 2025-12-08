@@ -454,3 +454,23 @@ jobs:
               docker logs empathy-ai-bot --tail=50 2>&1 || echo "Логи недоступны"
               exit 1
             fi
+
+      - name: Notify on success
+        if: success()
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+          COMMIT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          curl -X POST "https://api.telegram.org/bot${{ secrets.TG_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.ADMIN_CHAT }}" \
+            -d "parse_mode=HTML" \
+            -d "text=✅ <b>Деплой успешно завершен!</b>%0A%0ACommit: <code>$COMMIT_SHA</code>%0A$COMMIT_MSG"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+          COMMIT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          curl -X POST "https://api.telegram.org/bot${{ secrets.TG_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.ADMIN_CHAT }}" \
+            -d "parse_mode=HTML" \
+            -d "text=❌ <b>Деплой завершился с ошибкой!</b>%0A%0ACommit: <code>$COMMIT_SHA</code>%0A$COMMIT_MSG%0A%0AПроверьте <a href='https://github.com/${{ github.repository }}/actions'>Actions</a>."

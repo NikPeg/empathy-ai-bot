@@ -380,23 +380,9 @@ docker stats empathy-ai-bot --no-stream
 
 ### Уведомления
 
-Рекомендуется настроить уведомления о статусе деплоя в Telegram. Добавьте в конец `.github/workflows/deploy.yml`:
-
-```yaml
-- name: Notify on success
-  if: success()
-  run: |
-    curl -X POST "https://api.telegram.org/bot${{ secrets.TG_TOKEN }}/sendMessage" \
-      -d "chat_id=${{ secrets.ADMIN_CHAT }}" \
-      -d "text=✅ Деплой успешно завершен! Commit: ${{ github.sha }}"
-
-- name: Notify on failure
-  if: failure()
-  run: |
-    curl -X POST "https://api.telegram.org/bot${{ secrets.TG_TOKEN }}/sendMessage" \
-      -d "chat_id=${{ secrets.ADMIN_CHAT }}" \
-      -d "text=❌ Деплой завершился с ошибкой! Проверьте Actions."
-```
+Уведомления о статусе деплоя отправляются автоматически в Telegram чат `ADMIN_CHAT`:
+- ✅ При успешном деплое
+- ❌ При ошибке деплоя
 
 ---
 
@@ -445,31 +431,11 @@ git push origin main
 
 ## Улучшения и best practices
 
-### 1. Настройте уведомления
-
-Добавьте в конец `.github/workflows/deploy.yml`:
-
-```yaml
-- name: Notify on success
-  if: success()
-  run: |
-    curl -X POST "https://api.telegram.org/bot${{ secrets.TG_TOKEN }}/sendMessage" \
-      -d "chat_id=${{ secrets.ADMIN_CHAT }}" \
-      -d "text=✅ Деплой успешно завершен!"
-
-- name: Notify on failure
-  if: failure()
-  run: |
-    curl -X POST "https://api.telegram.org/bot${{ secrets.TG_TOKEN }}/sendMessage" \
-      -d "chat_id=${{ secrets.ADMIN_CHAT }}" \
-      -d "text=❌ Деплой завершился с ошибкой!"
-```
-
-### 2. Настройте мониторинг
+### 1. Настройте мониторинг
 
 Используйте Uptime Kuma или подобные сервисы для мониторинга доступности бота.
 
-### 3. Backup базы данных
+### 2. Backup базы данных
 
 Настройте регулярные бэкапы:
 
@@ -478,7 +444,7 @@ git push origin main
 0 3 * * * docker exec empathy-ai-bot sqlite3 /data/users.db .dump > /opt/empathy-ai-bot/backups/backup-$(date +\%Y\%m\%d).sql
 ```
 
-### 4. Blue-Green deployment
+### 3. Blue-Green deployment
 
 Для zero-downtime деплоя можно настроить два контейнера и переключаться между ними.
 
