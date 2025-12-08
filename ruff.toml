@@ -36,6 +36,7 @@ select = [
 # Ignore specific rules
 ignore = [
     "E501",  # line too long (handled by formatter)
+    "W293",  # blank line contains whitespace
 ]
 
 [lint.per-file-ignores]
