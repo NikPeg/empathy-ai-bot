@@ -303,6 +303,10 @@ async def get_top_active_users(limit: int = 10) -> list[dict]:
             avg_messages_per_day = total_messages / days_active
             max_messages_per_day = max(messages_by_date.values())
 
+            # Фильтруем пользователей с минимум 5 днями активности
+            if days_active < 5:
+                continue
+
             # Комбинированный балл: среднее (60%) + максимум (40%)
             score = avg_messages_per_day * 0.6 + max_messages_per_day * 0.4
 
