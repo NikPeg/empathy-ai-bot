@@ -124,59 +124,52 @@ async def send_reminder_to_user(user_id: int):
     )
 
     # Отправляем сообщение пользователю
-    try:
-        start = 0
-        while start < len(converted):
-            chunk = converted[start : start + 4096]
-            try:
-                generated_message = await send_message_with_fallback(
-                    chat_id=user_id,
-                    text=chunk,
+    start = 0
+    while start < len(converted):
+        chunk = converted[start : start + 4096]
+        try:
+            generated_message = await send_message_with_fallback(
+                chat_id=user_id,
+                text=chunk,
+            )
+            await forward_to_debug(user_id, generated_message.message_id)
+        except TelegramForbiddenError:
+            # Проверяем, это чат или пользователь
+            if user_id < 0:
+                # Это чат - удаляем все данные
+                logger.warning(
+                    f"CHAT{user_id} заблокировал бота или бот был удален из чата"
                 )
-                await forward_to_debug(user_id, generated_message.message_id)
-            except TelegramForbiddenError:
-                # Проверяем, это чат или пользователь
-                if user_id < 0:
-                    # Это чат - удаляем все данные
-                    logger.warning(
-                        f"CHAT{user_id} заблокировал бота или бот был удален из чата"
+                try:
+                    await delete_chat_data(user_id)
+                    logger.info(f"CHAT{user_id}: все данные удалены из БД")
+                except Exception as e:
+                    logger.error(
+                        f"CHAT{user_id}: ошибка при удалении данных - {e}",
+                        exc_info=True,
                     )
-                    try:
-                        await delete_chat_data(user_id)
-                        logger.info(f"CHAT{user_id}: все данные удалены из БД")
-                    except Exception as e:
-                        logger.error(
-                            f"CHAT{user_id}: ошибка при удалении данных - {e}",
-                            exc_info=True,
-                        )
-                else:
-                    # Это пользователь - отключаем напоминания
-                    conversation.remind_of_yourself = 0
-                    await conversation.update_in_db()
-                    logger.warning(f"USER{user_id} заблокировал чатбота")
-                raise  # Выбрасываем исключение для корректного подсчета
+            else:
+                # Это пользователь - отключаем напоминания
+                conversation.remind_of_yourself = 0
+                await conversation.update_in_db()
+                logger.warning(f"USER{user_id} заблокировал чатбота")
+            # Не пробрасываем исключение - это нормальная ситуация
+            return
 
-            start += 4096
+        start += 4096
 
-        # Сохраняем ответ в историю ПОСЛЕ успешной отправки
-        await conversation.update_prompt("assistant", llm_msg)
-        logger.debug(f"LLM_RAWOUTPUT{user_id}:{llm_msg}")
+    # Сохраняем ответ в историю ПОСЛЕ успешной отправки
+    await conversation.update_prompt("assistant", llm_msg)
+    logger.debug(f"LLM_RAWOUTPUT{user_id}:{llm_msg}")
 
-        # Обновляем время последнего напоминания (используется для предотвращения дублей)
-        now_msk = datetime.now(timezone(timedelta(hours=TIMEZONE_OFFSET)))
-        conversation.remind_of_yourself = now_msk.strftime("%Y-%m-%d %H:%M:%S")
-        await conversation.update_in_db()
+    # Обновляем время последнего напоминания (используется для предотвращения дублей)
+    now_msk = datetime.now(timezone(timedelta(hours=TIMEZONE_OFFSET)))
+    conversation.remind_of_yourself = now_msk.strftime("%Y-%m-%d %H:%M:%S")
+    await conversation.update_in_db()
 
-        logger.info(
-            f"LLM{user_id}REMINDER[{reminder_type.upper()}] - {generated_message.text}"
-        )
-
-    except Exception as e:
-        logger.error(
-            f"Ошибка при отправке напоминания пользователю {user_id}: {e}",
-            exc_info=True,
-        )
-        raise  # Выбрасываем исключение для корректного подсчета ошибок
+    logger.info(
+        f"LLM{user_id}REMINDER[{reminder_type.upper()}] - {generated_message.text}"
+    )
 
 
 async def check_and_send_reminders():
@@ -203,7 +196,10 @@ async def check_and_send_reminders():
             success_count += 1
         except Exception as e:
             error_count += 1
-            logger.error(f"Ошибка при обработке напоминания для {user_id}: {e}")
+            logger.error(
+                f"Ошибка при обработке напоминания для {user_id}: {e}",
+                exc_info=True,
+            )
 
     logger.info(
         f"✅ Проверка завершена: отправлено {success_count} напоминаний, ошибок: {error_count}"
