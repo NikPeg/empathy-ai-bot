@@ -19,8 +19,19 @@ TIMEZONE_OFFSET = int(os.environ.get("TIMEZONE_OFFSET") or "3")
 FROM_TIME = int(os.environ.get("FROM_TIME") or "9")
 TO_TIME = int(os.environ.get("TO_TIME") or "23")
 
-# Импортируем настройки напоминаний из config
-from config import REMINDER_TIME, REMINDER_WEEKDAYS
+# Настройки напоминаний (читаем напрямую из окружения, чтобы избежать циклических зависимостей)
+REMINDER_TIME = os.environ.get("REMINDER_TIME", "19:15")
+REMINDER_WEEKDAYS_STR = os.environ.get("REMINDER_WEEKDAYS", "")
+# Парсим дни недели
+if REMINDER_WEEKDAYS_STR.strip():
+    try:
+        REMINDER_WEEKDAYS = [int(x.strip()) for x in REMINDER_WEEKDAYS_STR.split(",") if x.strip()]
+        # Валидация: только числа от 0 до 6
+        REMINDER_WEEKDAYS = [wd for wd in REMINDER_WEEKDAYS if 0 <= wd <= 6]
+    except (ValueError, AttributeError):
+        REMINDER_WEEKDAYS = []
+else:
+    REMINDER_WEEKDAYS = []  # Пустой список = все дни недели
 
 
 class Conversation:
