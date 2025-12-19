@@ -429,8 +429,8 @@ jobs:
                 echo "🔄 Откат выполнен"
                 docker logs empathy-ai-bot --tail=30
               else
-                echo "⚠️  Нет предыдущей версии для отката!"
-                docker logs empathy-ai-bot --tail=50
+              echo "⚠️  Нет предыдущей версии для отката!"
+              docker logs empathy-ai-bot --tail=50
               fi
               exit 1
             fi
@@ -461,22 +461,79 @@ jobs:
               exit 1
             fi
 
-      - name: Notify on success
-        if: success()
-        run: |
-          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
-          COMMIT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          curl -X POST "https://api.telegram.org/bot${{ secrets.TG_TOKEN }}/sendMessage" \
-            -d "chat_id=${{ secrets.ADMIN_CHAT }}" \
-            -d "parse_mode=HTML" \
-            -d "text=✅ <b>Деплой успешно завершен!</b>%0A%0ACommit: <code>$COMMIT_SHA</code>%0A$COMMIT_MSG"
+  notify:
+    name: Send Telegram Notification
+    needs: [test, build-and-push, deploy]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Notify on failure
-        if: failure()
+      - name: Send notification
         run: |
           COMMIT_MSG=$(git log -1 --pretty=format:"%s")
           COMMIT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          WORKFLOW_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          
+          # Определяем статусы каждого job
+          TEST_STATUS="${{ needs.test.result }}"
+          BUILD_STATUS="${{ needs.build-and-push.result }}"
+          DEPLOY_STATUS="${{ needs.deploy.result }}"
+          
+          # Функция для форматирования статуса
+          format_status() {
+            local status=$1
+            local name=$2
+            case "$status" in
+              "success")
+                echo "✅ <b>${name}:</b> успешно"
+                ;;
+              "failure")
+                echo "❌ <b>${name}:</b> ошибка"
+                ;;
+              "cancelled")
+                echo "⚠️ <b>${name}:</b> отменен"
+                ;;
+              "skipped")
+                echo "⏭️ <b>${name}:</b> пропущен"
+                ;;
+              *)
+                echo "❓ <b>${name}:</b> ${status:-неизвестно}"
+                ;;
+            esac
+          }
+          
+          # Формируем сообщение
+          # Проверяем, все ли jobs успешны (учитываем, что skipped/null не считается успехом)
+          ALL_SUCCESS=true
+          if [ "$TEST_STATUS" != "success" ] || [ -z "$TEST_STATUS" ]; then
+            ALL_SUCCESS=false
+          fi
+          if [ "$BUILD_STATUS" != "success" ] || [ -z "$BUILD_STATUS" ]; then
+            ALL_SUCCESS=false
+          fi
+          if [ "$DEPLOY_STATUS" != "success" ] || [ -z "$DEPLOY_STATUS" ]; then
+            ALL_SUCCESS=false
+          fi
+          
+          if [ "$ALL_SUCCESS" = "true" ]; then
+            EMOJI="✅"
+            TITLE="<b>Деплой успешно завершен!</b>"
+            STATUS_TEXT="Все этапы пройдены успешно"
+          else
+            EMOJI="❌"
+            TITLE="<b>Деплой завершился с ошибкой!</b>"
+            STATUS_TEXT=""
+            
+            STATUS_TEXT="${STATUS_TEXT}$(format_status "${TEST_STATUS:-skipped}" "Тесты/Линтер")%0A"
+            STATUS_TEXT="${STATUS_TEXT}$(format_status "${BUILD_STATUS:-skipped}" "Сборка")%0A"
+            STATUS_TEXT="${STATUS_TEXT}$(format_status "${DEPLOY_STATUS:-skipped}" "Деплой")%0A"
+          fi
+          
+          MESSAGE="${EMOJI} ${TITLE}%0A%0ACommit: <code>${COMMIT_SHA}</code>%0A${COMMIT_MSG}%0A%0A${STATUS_TEXT}%0A<a href='${WORKFLOW_URL}'>Проверить в Actions</a>"
+          
           curl -X POST "https://api.telegram.org/bot${{ secrets.TG_TOKEN }}/sendMessage" \
             -d "chat_id=${{ secrets.ADMIN_CHAT }}" \
             -d "parse_mode=HTML" \
-            -d "text=❌ <b>Деплой завершился с ошибкой!</b>%0A%0ACommit: <code>$COMMIT_SHA</code>%0A$COMMIT_MSG%0A%0AПроверьте <a href='https://github.com/${{ github.repository }}/actions'>Actions</a>."
+            -d "text=${MESSAGE}"
+
