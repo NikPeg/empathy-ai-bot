@@ -72,8 +72,7 @@ async def test_model(model_name: str, api_key: str = LLM_TOKEN) -> tuple[bool, s
                     if content is None or content.strip() == "":
                         return False, "Модель вернула пустой ответ"
                     return True, content
-                else:
-                    return False, f"Нет choices в ответе: {response_json}"
+                return False, f"Нет choices в ответе: {response_json}"
                     
             except json.JSONDecodeError as e:
                 return False, f"Ошибка парсинга JSON ответа: {e}\nОтвет: {response_text[:200]}"
@@ -82,7 +81,7 @@ async def test_model(model_name: str, api_key: str = LLM_TOKEN) -> tuple[bool, s
         return False, f"HTTP ошибка: {e}"
     except aiohttp.ClientError as e:
         return False, f"Сетевая ошибка: {e}"
-    except asyncio.TimeoutError:
+    except TimeoutError:
         return False, "Превышено время ожидания ответа (30 сек)"
     except Exception as e:
         return False, f"Неожиданная ошибка: {type(e).__name__}: {e}"
