@@ -112,11 +112,12 @@ jobs:
           YC_REGISTRY_ID: ${{ secrets.YC_REGISTRY_ID }}
           NEW_IMAGE: ${{ env.REGISTRY }}/${{ secrets.YC_REGISTRY_ID }}/${{ env.IMAGE_NAME }}:latest
           BACKUP_IMAGE: ${{ env.REGISTRY }}/${{ secrets.YC_REGISTRY_ID }}/${{ env.IMAGE_NAME }}:stable
+          YC_SA_JSON_CREDENTIALS: ${{ secrets.YC_SA_JSON_CREDENTIALS }}
         with:
           host: ${{ secrets.YC_INSTANCE_IP }}
           username: ${{ secrets.YC_INSTANCE_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: TG_TOKEN,LLM_TOKEN,ADMIN_CHAT,MODEL,DEBUG,MAX_CONTEXT,MAX_STORAGE,DELAYED_REMINDERS_HOURS,DELAYED_REMINDERS_MINUTES,TIMEZONE_OFFSET,FROM_TIME,TO_TIME,REMINDER_TIME,REMINDER_WEEKDAYS,REMINDER_CHECK_INTERVAL,FEEDBACK_FORM_URL,ADMIN_LIST,REQUIRED_CHANNELS,FILE_LOG_LEVEL,TELEGRAM_LOG_LEVEL,YC_REGISTRY_ID,NEW_IMAGE,BACKUP_IMAGE
+          envs: TG_TOKEN,LLM_TOKEN,ADMIN_CHAT,MODEL,DEBUG,MAX_CONTEXT,MAX_STORAGE,DELAYED_REMINDERS_HOURS,DELAYED_REMINDERS_MINUTES,TIMEZONE_OFFSET,FROM_TIME,TO_TIME,REMINDER_TIME,REMINDER_WEEKDAYS,REMINDER_CHECK_INTERVAL,FEEDBACK_FORM_URL,ADMIN_LIST,REQUIRED_CHANNELS,FILE_LOG_LEVEL,TELEGRAM_LOG_LEVEL,YC_REGISTRY_ID,NEW_IMAGE,BACKUP_IMAGE,YC_SA_JSON_CREDENTIALS
           script: |
             set -e  # Остановка при ошибке
 
@@ -126,6 +127,14 @@ jobs:
             export DEPLOY_DIR="$HOME/empathy-ai-bot"
             mkdir -p "$DEPLOY_DIR/data" "$DEPLOY_DIR/logs"
             echo "📁 Директория деплоя: $DEPLOY_DIR"
+
+            # Логинимся в Yandex Container Registry на сервере
+            echo "🔐 Логинимся в Container Registry..."
+            echo "$YC_SA_JSON_CREDENTIALS" | docker login \
+              --username json_key \
+              --password-stdin \
+              cr.yandex
+            echo "✅ Авторизация успешна"
 
             # Сохраняем информацию о текущем работающем контейнере
             CURRENT_IMAGE=""
