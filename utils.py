@@ -15,6 +15,15 @@ from aiogram.exceptions import (
 from bot_instance import bot
 from config import ADMIN_CHAT, MESSAGES_LEVEL, logger
 
+_bot_info_cache = None
+
+
+async def get_cached_bot_info():
+    global _bot_info_cache
+    if _bot_info_cache is None:
+        _bot_info_cache = await bot.get_me()
+    return _bot_info_cache
+
 
 async def keep_typing(chat_id: int, duration: int = 30):
     """
@@ -115,8 +124,8 @@ async def should_respond_in_chat(message: types.Message) -> bool:
     if is_private_chat(message):
         return True
 
-    # Получаем информацию о боте
-    bot_info = await bot.get_me()
+    # Получаем информацию о боте (кэшируется после первого вызова)
+    bot_info = await get_cached_bot_info()
     bot_username = bot_info.username
 
     # Проверяем, является ли сообщение ответом на сообщение бота
