@@ -257,7 +257,7 @@ jobs:
               
               # Запускаем через docker-compose
               cd "$DEPLOY_DIR"
-              sudo docker-compose -f docker-compose.prod.yml up -d
+              docker compose -f docker-compose.prod.yml up -d
             }
 
             # Запускаем новый контейнер
